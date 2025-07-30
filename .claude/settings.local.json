@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mkdir:*)",
       "Bash(touch:*)",
-      "Bash(python run:*)"
+      "Bash(python run:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }
