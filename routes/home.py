@@ -69,7 +69,7 @@ template = '''
         }
 
         .container {
-            max-width: 70%;
+            max-width: 90%;
             margin: 0 auto;
             padding: 0 1rem;
             position: relative;
@@ -256,7 +256,7 @@ template = '''
         }
 
         .hero-grid > div:first-child {
-            margin-left: 2.5rem;
+            margin-left: 0;
         }
 
         .hero h1 {
@@ -583,7 +583,7 @@ template = '''
         .solution-icon {
             font-size: 2rem;
             filter: drop-shadow(0 0 10px currentColor);
-            margin-left: 8rem;
+            margin-left: 0;
         }
 
         .solution-title {
@@ -1293,22 +1293,117 @@ template = '''
             }
         }
 
-        @media (max-width: 767px) {
-            .social-links {
-                gap: 1.5rem;
-            }
+        /* Mobile Menu Styles */
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 100%;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            transition: right 0.3s ease;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 2rem;
+        }
 
-        @media (min-width: 1200px) {
-            .nav-desktop {
-                gap: 0.75rem;
-            }
+        .mobile-menu.active {
+            right: 0;
         }
-        
-        @media (min-width: 1920px) {
+
+        .mobile-nav-link {
+            color: var(--text);
+            text-decoration: none;
+            font-size: 1.5rem;
+            font-weight: 600;
+            padding: 1rem;
+            transition: color 0.3s ease;
+        }
+
+        .mobile-nav-link:hover {
+            color: var(--primary);
+        }
+
+        .close-menu {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 2rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 767px) {
             .container {
-                max-width: 1600px;
+                max-width: 95%;
+                padding: 0 1rem;
             }
-        }
+            
+            .hero h1 {
+                font-size: 2rem;
+                line-height: 1.1;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.2rem;
+            }
+            
+            .hero-visual {
+                height: 250px;
+            }
+            
+            .cube {
+                width: 180px;
+                height: 180px;
+            }
+            
+            .cube-face {
+                width: 180px;
+                height: 180px;
+                font-size: 1.8rem;
+            }
+            
+            .face-front { transform: translateZ(90px); }
+            .face-back { transform: rotateY(180deg) translateZ(90px); }
+            .face-right { transform: rotateY(90deg) translateZ(90px); }
+            .face-left { transform: rotateY(-90deg) translateZ(90px); }
+            .face-top { transform: rotateX(90deg) translateZ(90px); }
+            .face-bottom { transform: rotateX(-90deg) translateZ(90px); }
+            
+            .services-title,
+            .ai-intelligence-title {
+                font-size: 2rem;
+            }
+            
+            .product-title {
+                font-size: 1.5rem;
+            }
+            
+            .product-description {
+                font-size: 1.1rem;
+            }
+            
+            .contact-form {
+                padding: 1.5rem;
+            }
+            
+            .cta-title {
+                font-size: 1.5rem;
+            }
+            
+            .cta-description {
+                font-size: 1rem;
+            }
+            
+            .social-links {
+                gap: 1rem;
+            }
             
             .footer-bottom {
                 flex-direction: column;
@@ -1338,6 +1433,36 @@ template = '''
                 width: 100%;
             }
         }
+
+        @media (min-width: 768px) {
+            .container {
+                max-width: 85%;
+            }
+            
+            .hero-grid > div:first-child {
+                margin-left: 2.5rem;
+            }
+            
+            .solution-icon {
+                margin-left: 8rem;
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 70%;
+            }
+            
+            .nav-desktop {
+                gap: 0.75rem;
+            }
+        }
+        
+        @media (min-width: 1920px) {
+            .container {
+                max-width: 1600px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1359,6 +1484,17 @@ template = '''
             </nav>
             
             <button class="menu-button" id="menu-button">☰</button>
+        </div>
+        
+        <!-- Mobile Menu -->
+        <div class="mobile-menu" id="mobile-menu">
+            <button class="close-menu" id="close-menu">✕</button>
+            <nav>
+                <a href="/trading-suite" class="mobile-nav-link">Trading Suite</a>
+                <a href="/marketing-solutions" class="mobile-nav-link">Marketing Solutions</a>
+                <a href="/blog" class="mobile-nav-link">Blog</a>
+                <a href="/contact" class="mobile-nav-link">Contact</a>
+            </nav>
         </div>
     </header>
     
@@ -1739,18 +1875,37 @@ template = '''
         // Mobile Menu Toggle
         const menuButton = document.getElementById('menu-button');
         const mobileMenu = document.getElementById('mobile-menu');
+        const closeMenu = document.getElementById('close-menu');
         
         if (menuButton && mobileMenu) {
             menuButton.addEventListener('click', () => {
                 mobileMenu.classList.add('active');
+                document.body.style.overflow = 'hidden'; // Prevent body scroll when menu is open
             });
             
-            const closeMenu = document.getElementById('close-menu');
             if (closeMenu) {
                 closeMenu.addEventListener('click', () => {
                     mobileMenu.classList.remove('active');
+                    document.body.style.overflow = 'auto'; // Restore body scroll
                 });
             }
+            
+            // Close menu when clicking on mobile nav links
+            const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+            mobileNavLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenu.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                });
+            });
+            
+            // Close menu when clicking outside of it
+            mobileMenu.addEventListener('click', (e) => {
+                if (e.target === mobileMenu) {
+                    mobileMenu.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                }
+            });
         }
         
         // Cube rotation interaction
