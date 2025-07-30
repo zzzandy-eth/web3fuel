@@ -7,10 +7,10 @@
         </a>
         
         <nav class="nav-desktop">
-            <a href="/trading-suite" class="nav-link">Trading Suite</a>
-            <a href="/marketing-solutions" class="nav-link">Marketing Solutions</a>
-            <a href="/blog" class="nav-link">Blog</a>
-            <a href="/contact" class="nav-link contact-highlight">Contact</a>
+            <a href="/trading-suite" class="nav-link{% if request.endpoint == 'trading_suite.trading_suite' %} active{% endif %}">Trading Suite</a>
+            <a href="/marketing-solutions" class="nav-link{% if request.endpoint == 'marketing_solutions.marketing_solutions' %} active{% endif %}">Marketing Solutions</a>
+            <a href="/blog" class="nav-link{% if request.endpoint == 'blog.blog' %} active{% endif %}">Blog</a>
+            <a href="/contact" class="nav-link contact-highlight{% if request.endpoint == 'contact.contact' %} active{% endif %}">Contact</a>
         </nav>
         
         <button class="menu-button" id="menu-button">☰</button>
@@ -20,10 +20,10 @@
     <div class="mobile-menu" id="mobile-menu">
         <button class="close-menu" id="close-menu">✕</button>
         <nav>
-            <a href="/trading-suite" class="mobile-nav-link">Trading Suite</a>
-            <a href="/marketing-solutions" class="mobile-nav-link">Marketing Solutions</a>
-            <a href="/blog" class="mobile-nav-link">Blog</a>
-            <a href="/contact" class="mobile-nav-link">Contact</a>
+            <a href="/trading-suite" class="mobile-nav-link{% if request.endpoint == 'trading_suite.trading_suite' %} active{% endif %}">Trading Suite</a>
+            <a href="/marketing-solutions" class="mobile-nav-link{% if request.endpoint == 'marketing_solutions.marketing_solutions' %} active{% endif %}">Marketing Solutions</a>
+            <a href="/blog" class="mobile-nav-link{% if request.endpoint == 'blog.blog' %} active{% endif %}">Blog</a>
+            <a href="/contact" class="mobile-nav-link{% if request.endpoint == 'contact.contact' %} active{% endif %}">Contact</a>
         </nav>
     </div>
 </header>
