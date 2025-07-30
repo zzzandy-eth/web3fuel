@@ -1,0 +1,435 @@
+{% extends "base.html" %}
+
+{% block title %}Blog - Web3Fuel.io{% endblock %}
+
+{% block head %}
+    <meta name="description" content="Latest insights on blockchain, cryptocurrency, and Web3 technology from Web3Fuel.io">
+    <meta name="keywords" content="blockchain, cryptocurrency, web3, bitcoin, ethereum, trading, defi">
+    <link rel="alternate" type="application/rss+xml" title="Web3Fuel Blog RSS" href="/blog/feed">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://web3fuel.io/blog/">
+    <meta property="og:title" content="Web3Fuel Blog - Blockchain & Crypto Insights">
+    <meta property="og:description" content="Latest insights on blockchain, cryptocurrency, and Web3 technology">
+    <meta property="og:image" content="https://web3fuel.io/static/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://web3fuel.io/blog/">
+    <meta property="twitter:title" content="Web3Fuel Blog - Blockchain & Crypto Insights">
+    <meta property="twitter:description" content="Latest insights on blockchain, cryptocurrency, and Web3 technology">
+    <meta property="twitter:image" content="https://web3fuel.io/static/og-image.png">
+{% endblock %}
+
+{% block content %}
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1 class="page-title">Latest Articles</h1>
+        <p class="subtitle">Stay up to date with the latest AI trading & marketing insights, tutorials, and trends.</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Featured Section -->
+        <section class="featured-section" id="featured-section">
+            <div id="featured-post"></div>
+        </section>
+
+        <!-- Latest Posts Section -->
+        <section>
+            <div class="posts-header">
+                <h2 class="posts-title">More Recent Posts</h2>
+                <span class="posts-count" id="posts-count"> < Showing 6 of 6 articles > </span>
+            </div>
+            <div class="loading" id="loading">
+                Loading posts...
+            </div>
+            <div class="posts-grid" id="posts-grid"></div>
+        </section>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script>
+        // ENHANCED JAVASCRIPT FOR BETTER IMAGE HANDLING
+
+        // Get the best image size based on container dimensions and device pixel ratio
+        function getBestImageSize(imageSizes, containerWidth, containerHeight) {
+            if (!imageSizes || Object.keys(imageSizes).length === 0) {
+                return null;
+            }
+            
+            // Get device pixel ratio for high DPI displays
+            const pixelRatio = window.devicePixelRatio || 1;
+            const targetWidth = containerWidth * pixelRatio;
+            const targetHeight = containerHeight * pixelRatio;
+            
+            // For featured images (larger containers), prefer larger sizes
+            if (containerHeight >= 300) {
+                // On larger screens, prefer the full size or large for 1920x1080 images
+                const screenWidth = window.innerWidth;
+                if (screenWidth >= 1200) {
+                    // Large desktop - use full size first
+                    for (const size of ['full', 'large', 'medium_large', 'medium']) {
+                        if (imageSizes[size]) {
+                            return imageSizes[size];
+                        }
+                    }
+                } else {
+                    // Medium screens - use large first
+                    for (const size of ['large', 'medium_large', 'full', 'medium']) {
+                        if (imageSizes[size]) {
+                            return imageSizes[size];
+                        }
+                    }
+                }
+            } else {
+                // For smaller containers, prefer medium sizes
+                for (const size of ['medium_large', 'large', 'medium', 'full']) {
+                    if (imageSizes[size]) {
+                        return imageSizes[size];
+                    }
+                }
+            }
+            
+            // Fallback to any available size
+            const availableSizes = Object.keys(imageSizes);
+            if (availableSizes.length > 0) {
+                return imageSizes[availableSizes[0]];
+            }
+            
+            return null;
+        }
+
+        // Create responsive image with loading states
+        function createResponsiveImage(imageData, containerElement, isFeatured = false) {
+            const containerWidth = containerElement.offsetWidth || (isFeatured ? 800 : 400);
+            const containerHeight = isFeatured ? 400 : 250;
+            
+            let imageUrl;
+            
+            if (imageData.featured_image_sizes && Object.keys(imageData.featured_image_sizes).length > 0) {
+                // Use the best available size
+                imageUrl = getBestImageSize(imageData.featured_image_sizes, containerWidth, containerHeight);
+            } else if (imageData.featured_image) {
+                // Fallback to the single featured image
+                imageUrl = imageData.featured_image;
+            }
+            
+            if (!imageUrl) {
+                imageUrl = createPlaceholderImage(imageData.title);
+            }
+            
+            // Add loading class
+            containerElement.classList.add('image-loading');
+            
+            // Create a new image to test loading
+            const testImage = new Image();
+            
+            testImage.onload = function() {
+                // Image loaded successfully
+                containerElement.style.backgroundImage = `url('${imageUrl}')`;
+                containerElement.classList.remove('image-loading');
+                containerElement.classList.add('image-loaded');
+                
+                // Add lazy loading for better performance
+                if ('loading' in HTMLImageElement.prototype) {
+                    testImage.loading = 'lazy';
+                }
+            };
+            
+            testImage.onerror = function() {
+                // Image failed to load, try fallback or placeholder
+                console.warn('Failed to load image:', imageUrl);
+                
+                // Try a different size if available
+                if (imageData.featured_image_sizes) {
+                    const fallbackSizes = ['medium', 'thumbnail', 'full'];
+                    let fallbackFound = false;
+                    
+                    for (const size of fallbackSizes) {
+                        if (imageData.featured_image_sizes[size] && imageData.featured_image_sizes[size] !== imageUrl) {
+                            console.log('Trying fallback size:', size);
+                            imageUrl = imageData.featured_image_sizes[size];
+                            testImage.src = imageUrl; // This will trigger onload/onerror again
+                            fallbackFound = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!fallbackFound) {
+                        // All sizes failed, use placeholder
+                        useErrorState();
+                    }
+                } else {
+                    useErrorState();
+                }
+            };
+            
+            function useErrorState() {
+                containerElement.classList.remove('image-loading');
+                containerElement.classList.add('image-error');
+                const placeholderUrl = createPlaceholderImage(imageData.title);
+                containerElement.style.backgroundImage = `url('${placeholderUrl}')`;
+            }
+            
+            // Start loading the image
+            testImage.src = imageUrl;
+            
+            return imageUrl;
+        }
+
+        // Toggle mobile menu (if you have one)
+        function toggleMobileMenu() {
+            // Add mobile menu functionality if needed
+            console.log('Mobile menu toggle');
+        }
+
+        // Create placeholder image
+        function createPlaceholderImage(title) {
+            const colors = ['00ffea', 'ff00ff', '7c3aed'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23${color}"/><text x="200" y="150" text-anchor="middle" fill="black" font-size="16" font-weight="bold">Web3Fuel</text></svg>`;
+        }
+
+        // Enhanced date formatting
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) {
+                return "Yesterday";
+            } else if (diffDays < 7) {
+                return `${diffDays} days ago`;
+            } else if (diffDays < 30) {
+                const weeks = Math.floor(diffDays / 7);
+                return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+            } else {
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+        }
+
+        // Track blog clicks for analytics
+        function trackBlogClick(postTitle, postUrl) {
+            console.log('Blog click tracked:', postTitle, postUrl);
+        }
+
+        // Enhanced display featured post function
+        function displayFeaturedPost(post) {
+            const featuredContainer = document.getElementById('featured-post');
+            
+            featuredContainer.innerHTML = `
+                <article class="featured-post fade-in-up" data-post-url="${post.link}">
+                    <div class="featured-image" role="img" aria-label="Featured image for ${post.title}"></div>
+                    <div class="featured-content">
+                        <h3 class="post-title">${post.title}</h3>
+                        <p class="post-excerpt">${post.excerpt}</p>
+                        <div class="post-meta">
+                            <span class="meta-item">📅 ${formatDate(post.date)}</span>
+                            <span class="meta-item">✍️ ${post.author}</span>
+                            <span class="meta-item">📖 ${post.reading_time} min read</span>
+                        </div>
+                        <a href="${post.link}" class="read-more-btn read-more-btn-small" target="_blank" rel="noopener" onclick="event.stopPropagation(); trackBlogClick('${post.title}', '${post.link}')">
+                            Read Full Article →
+                        </a>
+                    </div>
+                </article>
+            `;
+            
+            // Apply responsive image after DOM is created
+            const imageContainer = featuredContainer.querySelector('.featured-image');
+            createResponsiveImage(post, imageContainer, true);
+            
+            // Add click handler to the entire post
+            const postElement = featuredContainer.querySelector('.featured-post');
+            postElement.addEventListener('click', function() {
+                trackBlogClick(post.title, post.link);
+                window.open(post.link, '_blank', 'noopener');
+            });
+            
+            document.getElementById('featured-section').style.display = 'block';
+        }
+
+        // Enhanced display posts grid function
+        function displayPosts(posts, append = false) {
+            const postsGrid = document.getElementById('posts-grid');
+            
+            if (!append) {
+                postsGrid.innerHTML = '';
+            }
+            
+            posts.forEach((post, index) => {
+                const postCard = document.createElement('article');
+                postCard.className = 'post-card fade-in-up';
+                postCard.style.animationDelay = `${index * 0.1}s`;
+                postCard.setAttribute('data-post-url', post.link);
+                postCard.innerHTML = `
+                    <div class="post-image" role="img" aria-label="Image for ${post.title}"></div>
+                    <div class="post-content">
+                        <div class="post-meta">
+                            <span class="meta-item">📅 ${formatDate(post.date)}</span>
+                            <span class="meta-item">✍️ ${post.author}</span>
+                            <span class="meta-item">📖 ${post.reading_time} min read</span>
+                        </div>
+                        <h4 class="post-title">${post.title}</h4>
+                        <p class="post-excerpt">${post.excerpt}</p>
+                        <div class="category-tags">
+                            ${post.categories.map(cat => `<span class="category-tag">${cat.name}</span>`).join('')}
+                        </div>
+                        <a href="${post.link}" class="read-more-btn" target="_blank" rel="noopener" onclick="event.stopPropagation(); trackBlogClick('${post.title}', '${post.link}')">
+                            Read More →
+                        </a>
+                    </div>
+                `;
+                
+                // Add click handler to the entire post card
+                postCard.addEventListener('click', function() {
+                    trackBlogClick(post.title, post.link);
+                    window.open(post.link, '_blank', 'noopener');
+                });
+                
+                postsGrid.appendChild(postCard);
+                
+                // Apply responsive image after DOM is added
+                const imageContainer = postCard.querySelector('.post-image');
+                createResponsiveImage(post, imageContainer, false);
+            });
+        }
+
+        // Performance optimization: Preload critical images
+        function preloadCriticalImages(posts) {
+            const criticalPosts = posts.slice(0, 3); // Preload first 3 images
+            
+            criticalPosts.forEach(post => {
+                if (post.featured_image_sizes && post.featured_image_sizes.medium_large) {
+                    const link = document.createElement('link');
+                    link.rel = 'preload';
+                    link.as = 'image';
+                    link.href = post.featured_image_sizes.medium_large;
+                    document.head.appendChild(link);
+                }
+            });
+        }
+
+        // Enhanced fallback content
+        function showFallbackContent() {
+            const featuredContainer = document.getElementById('featured-post');
+            const postsGrid = document.getElementById('posts-grid');
+            
+            featuredContainer.innerHTML = `
+                <article class="featured-post">
+                    <div class="featured-image"></div>
+                    <div class="featured-content">
+                        <div class="post-meta">
+                            <span class="meta-item">📅 Latest</span>
+                            <span class="meta-item">✍️ Web3Fuel Team</span>
+                            <span class="meta-item">📖 5 min read</span>
+                        </div>
+                        <h3 class="post-title">Welcome to Web3Fuel Blog</h3>
+                        <p class="post-excerpt">Stay updated with the latest insights on blockchain technology, cryptocurrency markets, and Web3 innovations. Our expert analysis helps you navigate the rapidly evolving digital asset landscape.</p>
+                        <div class="category-tags">
+                            <span class="category-tag">Blockchain</span>
+                            <span class="category-tag">Cryptocurrency</span>
+                            <span class="category-tag">Web3</span>
+                        </div>
+                        <a href="https://web3fuel.io/blockchain/blog/" class="read-more-btn" target="_blank" rel="noopener">Visit Our Blog →</a>
+                    </div>
+                </article>
+            `;
+            
+            const fallbackPosts = [
+                {
+                    title: "Cryptocurrency Market Analysis",
+                    excerpt: "Deep dive into current market trends, price movements, and what to expect in the coming months.",
+                    category: "Analysis",
+                    readTime: "8 min read"
+                },
+                {
+                    title: "DeFi Protocol Security", 
+                    excerpt: "Understanding the latest security measures and best practices for decentralized finance protocols.",
+                    category: "DeFi",
+                    readTime: "6 min read"
+                },
+                {
+                    title: "NFT Market Evolution",
+                    excerpt: "How the NFT landscape is changing and what new opportunities are emerging for creators and collectors.",
+                    category: "NFT", 
+                    readTime: "7 min read"
+                }
+            ];
+            
+            postsGrid.innerHTML = fallbackPosts.map(post => `
+                <article class="post-card">
+                    <div class="post-image"></div>
+                    <div class="post-content">
+                        <div class="post-meta">
+                            <span class="meta-item">📅 Recent</span>
+                            <span class="meta-item">✍️ Analysis Team</span>
+                            <span class="meta-item">📖 ${post.readTime}</span>
+                        </div>
+                        <h4 class="post-title">${post.title}</h4>
+                        <p class="post-excerpt">${post.excerpt}</p>
+                        <div class="category-tags">
+                            <span class="category-tag">${post.category}</span>
+                        </div>
+                        <a href="https://web3fuel.io/blockchain/blog/" class="read-more-btn" target="_blank" rel="noopener">Read More →</a>
+                    </div>
+                </article>
+            `).join('');
+            
+            document.getElementById('featured-section').style.display = 'block';
+        }
+
+        // Enhanced post loading with error handling
+        async function loadPosts(page = 1, append = false) {
+            const loadingElement = document.getElementById('loading');
+            
+            try {
+                loadingElement.style.display = 'block';
+                
+                const response = await fetch(`/blog/api/posts?page=${page}&per_page=7`);
+                const data = await response.json();
+                
+                loadingElement.style.display = 'none';
+                
+                if (data.success && data.posts.length > 0) {
+                    // Preload critical images for better performance
+                    if (page === 1) {
+                        preloadCriticalImages(data.posts);
+                    }
+                    
+                    if (page === 1) {
+                        // Load featured post
+                        displayFeaturedPost(data.posts[0]);
+                        // Load remaining posts in grid
+                        if (data.posts.length > 1) {
+                            displayPosts(data.posts.slice(1), append);
+                        }
+                    } else {
+                        displayPosts(data.posts, append);
+                    }
+                } else {
+                    // Show fallback content
+                    showFallbackContent();
+                }
+            } catch (error) {
+                console.error('Error loading posts:', error);
+                loadingElement.style.display = 'none';
+                showFallbackContent();
+            }
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPosts(1);
+        });
+    </script>
+{% endblock %}
