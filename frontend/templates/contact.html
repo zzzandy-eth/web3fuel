@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Contact Us - Web3Fuel.io{% endblock %}
+
+{% block head %}
+<!-- Add EmailJS script -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Contact Hero Section -->
+<section class="contact-hero">
+    <div class="container">
+        <p class="contact-subtitle">Fill out the form below to reach out and we'll respond as quickly as possible via email response.</p>
+    </div>
+</section>
+
+<!-- Contact Form -->
+<section class="contact-content">
+    <div class="container">
+        <div class="contact-form-container">
+            <div class="contact-form-section">
+                <h3 class="form-title">Send Us a Message</h3>
+                <p class="form-description">Whether you need AI trading tools or marketing solutions, <br>let's discuss how we can help accelerate your success:</p>
+                
+                <div id="alert-container"></div>
+                
+                <form class="contact-form" id="contactForm" onsubmit="sendEmail(event)">
+                    <!-- Appointment Toggle -->
+                    <div class="appointment-toggle">
+                        <input type="checkbox" id="appointmentToggle" class="toggle-checkbox" onchange="toggleAppointmentFields()">
+                        <label for="appointmentToggle" class="toggle-label">Click here to schedule an appointment during this inquiry</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="name" class="form-label">Full Name *</label>
+                        <input type="text" id="name" name="name" class="form-input" placeholder="Enter your full name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email" class="form-label">Email Address *</label>
+                        <input type="email" id="email" name="email" class="form-input" placeholder="your.email@example.com" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="company" class="form-label">Company (Optional)</label>
+                        <input type="text" id="company" name="company" class="form-input" placeholder="Your company name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="subject" class="form-label">Subject *</label>
+                        <select id="subject" name="subject" class="form-input" required>
+                            <option value="">Select a topic...</option>
+                            <option value="Trading Tools Inquiry">Trading Tools & Market Analysis</option>
+                            <option value="Marketing Solutions Inquiry">AI Marketing Solutions</option>
+                            <option value="Partnership Opportunity">Partnership Opportunity</option>
+                            <option value="General Question">General Question</option>
+                            <option value="Technical Support">Technical Support</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <!-- Appointment Fields (Hidden by default) -->
+                    <div class="appointment-fields" id="appointmentFields">
+                        <div class="appointment-header">📅 Schedule Your Meeting</div>
+                        <div class="form-group">
+                            <label for="datetime" class="form-label">Preferred Date & Time (EST) *</label>
+                            <input type="datetime-local" id="datetime" name="datetime" class="form-input">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message" class="form-label">Message *</label>
+                        <textarea id="message" name="message" class="form-input form-textarea" placeholder="Tell us about your project, goals, or any specific questions you have..." required></textarea>
+                    </div>
+                    
+                    <button type="submit" class="form-submit" id="submitBtn">
+                        Send Message
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Toggle appointment fields
+    function toggleAppointmentFields() {
+        const checkbox = document.getElementById('appointmentToggle');
+        const fields = document.getElementById('appointmentFields');
+        const datetimeInput = document.getElementById('datetime');
+        
+        if (checkbox.checked) {
+            fields.classList.add('show');
+            datetimeInput.required = true;
+            
+            // Set minimum date to today for datetime picker
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            datetimeInput.min = now.toISOString().slice(0, 16);
+        } else {
+            fields.classList.remove('show');
+            datetimeInput.required = false;
+            datetimeInput.value = '';
+        }
+    }
+
+    // Alert Functions
+    function showAlert(message, type) {
+        const alertContainer = document.getElementById('alert-container');
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} show`;
+        alert.textContent = message;
+        
+        alertContainer.innerHTML = '';
+        alertContainer.appendChild(alert);
+        
+        setTimeout(() => {
+            alert.classList.remove('show');
+            setTimeout(() => alertContainer.innerHTML = '', 300);
+        }, 5000);
+    }
+
+    // Contact form submission with EmailJS
+    function sendEmail(event) {
+        event.preventDefault();
+        
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.textContent;
+        
+        // Disable button and show loading state
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+        
+        // Initialize EmailJS with your public key
+        emailjs.init("xSYgQUruN6qY2C0o2");
+        
+        // Check if appointment is requested
+        const appointmentRequested = document.getElementById('appointmentToggle').checked;
+        let estDateTime = 'No appointment requested';
+        
+        if (appointmentRequested) {
+            const datetimeInput = document.getElementById('datetime').value;
+            if (datetimeInput) {
+                const selectedDate = new Date(datetimeInput);
+                estDateTime = selectedDate.toLocaleString("en-US", {
+                    timeZone: "America/New_York",
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                }) + " EST";
+            }
+        }
+        
+        const params = {
+            name: document.getElementById('name').value,
+            email: document.getElementById('email').value,
+            company: document.getElementById('company').value || 'Not specified',
+            subject: document.getElementById('subject').value,
+            message: document.getElementById('message').value,
+            appointment_requested: appointmentRequested ? 'Yes' : 'No',
+            preferred_datetime: estDateTime
+        };
+        
+        // Send email
+        emailjs.send("service_gf8ewl9", "template_nad2dyc", params)
+            .then(() => {
+                if (appointmentRequested) {
+                    showAlert("Thanks for your message and appointment request! We'll get back to you within 24 hours with a meeting invite.", 'success');
+                } else {
+                    showAlert("Thanks for your message! We'll get back to you within 24 hours.", 'success');
+                }
+                document.getElementById('contactForm').reset();
+                document.getElementById('appointmentFields').classList.remove('show');
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                showAlert("Sorry, there was an error sending your message. Please try again or email us directly at info@web3fuel.io", 'error');
+            })
+            .finally(() => {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            });
+    }
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set minimum date to today for datetime picker
+        const datetimeInput = document.getElementById('datetime');
+        if (datetimeInput) {
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            datetimeInput.min = now.toISOString().slice(0, 16);
+        }
+    });
+</script>
+{% endblock %}
