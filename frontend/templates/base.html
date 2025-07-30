@@ -1,0 +1,31 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Web3Fuel.io{% endblock %}</title>
+    
+    <!-- Load CSS files -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/globals.css') }}">
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Meta tags -->
+    {% block meta %}{% endblock %}
+</head>
+<body>
+    <!-- Header will be included -->
+    {% include 'components/header.html' %}
+    
+    <!-- Main content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Footer will be included -->
+    {% include 'components/footer.html' %}
+    
+    <!-- Load JavaScript files -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
