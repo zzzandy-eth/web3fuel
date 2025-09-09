@@ -47,7 +47,7 @@ canvas {
 }
 
 .container {
-    max-width: 75%;
+    max-width: 70%;
     margin: 0 auto;
     padding: 0 1rem;
     position: relative;
@@ -1317,7 +1317,7 @@ select.form-input option:hover {
     cursor: pointer;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1024px) {
     .container {
         max-width: 95%;
         padding: 0 1rem;
@@ -1412,9 +1412,9 @@ select.form-input option:hover {
     }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1025px) {
     .container {
-        max-width: 75%;
+        max-width: 70%;
     }
     
     .hero-grid > div:first-child {
@@ -1428,7 +1428,7 @@ select.form-input option:hover {
 
 @media (min-width: 1200px) {
     .container {
-        max-width: 75%;
+        max-width: 70%;
     }
     
     .nav-desktop {
@@ -1438,7 +1438,7 @@ select.form-input option:hover {
 
 @media (min-width: 1920px) {
     .container {
-        max-width: 75%;
+        max-width: 70%;
     }
 }
 
@@ -2511,7 +2511,7 @@ select.form-input option:hover {
 }
 
 /* Contact Page Media Queries */
-@media (max-width: 767px) {
+@media (max-width: 1024px) {
     .contact-form-section {
         margin: 0 1rem;
     }
@@ -2577,7 +2577,7 @@ select.form-input option:hover {
     }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1024px) {
     .step-content h3 {
         font-size: 1.25rem;
     }
@@ -2624,7 +2624,7 @@ select.form-input option:hover {
 }
 
 .hero-container {
-    max-width: 75%;
+    max-width: 70%;
     margin: 0 auto;
     display: grid;
     grid-template-columns: 1fr;
@@ -3307,7 +3307,7 @@ select:focus, .trading-suite select:focus, .trading-suite button:focus {
     .hero-container {
         grid-template-columns: 1fr 1fr;
         gap: 4rem;
-        max-width: 75%;
+        max-width: 70%;
     }
     
     .hero-content {
@@ -3364,7 +3364,7 @@ select:focus, .trading-suite select:focus, .trading-suite button:focus {
     }
     
     .hero-container {
-        max-width: 75%;
+        max-width: 70%;
     }
     
     .news-grid {
@@ -3372,7 +3372,7 @@ select:focus, .trading-suite select:focus, .trading-suite button:focus {
     }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1024px) {
     .tab-navigation {
         flex-direction: column;
         align-items: stretch;
