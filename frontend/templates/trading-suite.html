@@ -7,7 +7,70 @@
 {% endblock %}
 
 {% block content %}
-<canvas id="matrix"></canvas>
+<style>
+    /* Trading-specific styles */
+    canvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: -1;
+        opacity: 0.3;
+    }
+    
+    /* Trading CSS variables */
+    :root {
+        --trading-success: #00ff88;
+        --trading-danger: #ff4444;
+        --trading-warning: #ffaa00;
+    }
+    
+    .btn {
+        background: transparent;
+        color: var(--primary);
+        border: 1px solid var(--border-color);
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-family: inherit;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+
+    .btn:hover {
+        background: rgba(0, 255, 234, 0.1);
+        border-color: var(--primary);
+    }
+
+    .btn:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(0, 255, 234, 0.2);
+    }
+    
+    .loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        color: var(--text-muted);
+    }
+
+    .spinner {
+        border: 2px solid rgba(0, 255, 234, 0.1);
+        border-left-color: var(--primary);
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        margin-right: 0.5rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
 
 <!-- Page Header -->
 <div class="page-header">
@@ -313,6 +376,10 @@
                             <label class="form-label">Entry Price ($)</label>
                             <input type="number" class="form-input" id="entry-price" placeholder="50000" step="0.01">
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">Stop Loss ($)</label>
+                            <input type="number" class="form-input" id="stop-loss" placeholder="48000" step="0.01">
+                        </div>
                         <button type="button" class="btn" onclick="calculatePosition()">Calculate Position</button>
                         <div class="result-display" id="position-result">
                             <div class="result-label">Recommended Position Size:</div>
@@ -465,55 +532,6 @@
 {% block scripts %}
 {{ super() }}
 <script>
-// Enhanced Matrix animation with trading symbols
-const canvas = document.getElementById('matrix');
-const ctx = canvas.getContext('2d');
-
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-
-const symbols = '₿ΞΔΣΠ∑∏∫0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ$%+-=';
-const fontSize = 14;
-const columns = canvas.width / fontSize;
-
-const drops = [];
-for (let i = 0; i < columns; i++) {
-    drops[i] = Math.floor(Math.random() * canvas.height / fontSize);
-}
-
-function draw() {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    for (let i = 0; i < drops.length; i++) {
-        const text = symbols[Math.floor(Math.random() * symbols.length)];
-        const x = i * fontSize;
-        const y = drops[i] * fontSize;
-        
-        // Gradient effect
-        const gradient = ctx.createLinearGradient(0, y - 20, 0, y + 20);
-        gradient.addColorStop(0, 'rgba(0, 255, 234, 0.8)');
-        gradient.addColorStop(1, 'rgba(0, 255, 234, 0.2)');
-        
-        ctx.fillStyle = gradient;
-        ctx.font = fontSize + 'px monospace';
-        ctx.fillText(text, x, y);
-
-        if (y > canvas.height && Math.random() > 0.975) {
-            drops[i] = 0;
-        }
-
-        drops[i] += Math.random() * 0.8 + 0.3;
-    }
-}
-
-setInterval(draw, 50);
-
-window.addEventListener('resize', () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
-
 // Tab functionality
 document.addEventListener('DOMContentLoaded', function() {
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -632,7 +650,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const priceChange = ((latest.close - oldest.close) / oldest.close) * 100;
         
         // Update DOM
-        currentPriceEl.textContent = `$${latest.close.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        currentPriceEl.textContent = `${latest.close.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
         priceChangeEl.textContent = `${priceChange.toFixed(2)}%`;
         priceChangeEl.style.color = priceChange >= 0 ? '#00ff88' : '#ff4444';
         
@@ -756,7 +774,7 @@ function calculatePosition() {
     const positionSize = riskAmount / priceRisk;
 
     document.getElementById('position-result').style.display = 'block';
-    document.getElementById('position-value').textContent = `${positionSize.toFixed(6)} units ($${(positionSize * entryPrice).toLocaleString()})`;
+    document.getElementById('position-value').textContent = `${positionSize.toFixed(6)} units (${(positionSize * entryPrice).toLocaleString()})`;
 }
 
 function calculateRiskReward() {
@@ -793,7 +811,7 @@ function calculatePnL() {
     document.getElementById('pnl-result').style.display = 'block';
     const resultEl = document.getElementById('pnl-value');
     resultEl.textContent = `$${pnl.toFixed(2)} (${pnlPercent.toFixed(2)}%)`;
-    resultEl.style.color = pnl >= 0 ? 'var(--trading-success)' : 'var(--trading-danger)';
+    resultEl.style.color = pnl >= 0 ? '#00ff88' : '#ff4444';
 }
 </script>
 {% endblock %}

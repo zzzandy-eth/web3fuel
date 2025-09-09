@@ -4,7 +4,12 @@
       "Bash(mkdir:*)",
       "Bash(touch:*)",
       "Bash(python run:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(curl:*)",
+      "Bash(dir:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }
