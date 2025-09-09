@@ -47,7 +47,7 @@ canvas {
 }
 
 .container {
-    max-width: 90%;
+    max-width: 75%;
     margin: 0 auto;
     padding: 0 1rem;
     position: relative;
@@ -1414,7 +1414,7 @@ select.form-input option:hover {
 
 @media (min-width: 768px) {
     .container {
-        max-width: 85%;
+        max-width: 75%;
     }
     
     .hero-grid > div:first-child {
@@ -1428,7 +1428,7 @@ select.form-input option:hover {
 
 @media (min-width: 1200px) {
     .container {
-        max-width: 70%;
+        max-width: 75%;
     }
     
     .nav-desktop {
@@ -1438,7 +1438,7 @@ select.form-input option:hover {
 
 @media (min-width: 1920px) {
     .container {
-        max-width: 1600px;
+        max-width: 75%;
     }
 }
 
@@ -3751,3 +3751,4 @@ select:focus, .trading-suite select:focus, .trading-suite button:focus {
         transform: translateY(0);
     }
 }
+
