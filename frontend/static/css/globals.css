@@ -235,12 +235,13 @@ header {
 
 .hero-grid > div:first-child {
     margin-left: 0;
+    text-align: left;
 }
 
 .hero h1 {
     font-size: 2.5rem;
     font-weight: 700;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2.0rem;
     line-height: 1.2;
 }
 
@@ -266,7 +267,7 @@ header {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
-    margin-top: 3rem;
+    margin-top: 4.5rem;
     margin-bottom: 0.1rem;
 }
 
@@ -297,15 +298,15 @@ header {
 }
 
 .stat-value {
-    font-size: 1.7rem;
-    font-weight: 900;
+    font-size: 1.9rem !important;
+    font-weight: 900 !important;
     color: var(--primary);
     margin-bottom: 0.3rem;
     text-shadow: 0 0 20px var(--primary);
 }
 
 .stat-label {
-    font-size: 1rem;
+    font-size: 1.1rem;
     color: var(--text-muted);
     font-weight: 600;
     text-transform: uppercase;
@@ -320,6 +321,7 @@ header {
     display: flex;
     justify-content: center;
     align-items: center;
+    margin: 0 auto;
 }
 
 .cube {
@@ -1243,6 +1245,9 @@ select.form-input option:hover {
         grid-template-columns: 1fr 1fr;
         align-items: center;
     }
+    .hero-visual {
+        margin: 2rem auto 0 auto;
+    }
     
     .products-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -1317,7 +1322,79 @@ select.form-input option:hover {
     cursor: pointer;
 }
 
-@media (max-width: 1024px) {
+/* Tablet Breakpoint */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .hero-grid {
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+    }
+    
+    .cube {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .cube-face {
+        width: 200px;
+        height: 200px;
+        font-size: 2rem;
+    }
+    
+    .face-front { transform: translateZ(100px); }
+    .face-back { transform: rotateY(180deg) translateZ(100px); }
+    .face-right { transform: rotateY(90deg) translateZ(100px); }
+    .face-left { transform: rotateY(-90deg) translateZ(100px); }
+    .face-top { transform: rotateX(90deg) translateZ(100px); }
+    .face-bottom { transform: rotateX(-90deg) translateZ(100px); }
+    
+    .services-title,
+    .ai-intelligence-title {
+        font-size: 2.2rem;
+    }
+    
+    .product-title {
+        font-size: 1.6rem;
+    }
+    
+    .product-description {
+        font-size: 1.15rem;
+    }
+    
+    .contact-form {
+        padding: 2rem;
+    }
+    
+    .cta-title {
+        font-size: 1.8rem;
+    }
+    
+    .cta-description {
+        font-size: 1.1rem;
+    }
+    
+    .cta-content {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    
+    .products-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    
+    .ai-solutions-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    
+    .comparison-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+}
+
+/* Mobile Breakpoint */
+@media (max-width: 767px) {
     .container {
         max-width: 95%;
         padding: 0 1rem;
@@ -1332,27 +1409,46 @@ select.form-input option:hover {
         font-size: 1.2rem;
     }
     
+    .hero-grid {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        text-align: center;
+    }
+    
+    .hero-grid > div:first-child {
+        text-align: center;
+    }
+    
     .hero-visual {
-        height: 250px;
+        height: 300px;
+        margin: 2rem auto 0 auto;
+        padding: 1rem;
+        overflow: visible;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     .cube {
-        width: 180px;
-        height: 180px;
+        width: 140px;
+        height: 140px;
+        margin: 0 auto;
     }
     
     .cube-face {
-        width: 180px;
-        height: 180px;
-        font-size: 1.8rem;
+        width: 140px;
+        height: 140px;
+        font-size: 1.4rem;
     }
     
-    .face-front { transform: translateZ(90px); }
-    .face-back { transform: rotateY(180deg) translateZ(90px); }
-    .face-right { transform: rotateY(90deg) translateZ(90px); }
-    .face-left { transform: rotateY(-90deg) translateZ(90px); }
-    .face-top { transform: rotateX(90deg) translateZ(90px); }
-    .face-bottom { transform: rotateX(-90deg) translateZ(90px); }
+    .face-front { transform: translateZ(70px); }
+    .face-back { transform: rotateY(180deg) translateZ(70px); }
+    .face-right { transform: rotateY(90deg) translateZ(70px); }
+    .face-left { transform: rotateY(-90deg) translateZ(70px); }
+    .face-top { transform: rotateX(90deg) translateZ(70px); }
+    .face-bottom { transform: rotateX(-90deg) translateZ(70px); }
     
     .services-title,
     .ai-intelligence-title {
@@ -1417,9 +1513,6 @@ select.form-input option:hover {
         max-width: 70%;
     }
     
-    .hero-grid > div:first-child {
-        margin-left: 2.5rem;
-    }
     
     .solution-icon {
         margin-left: 8rem;
@@ -3749,6 +3842,13 @@ select:focus, .trading-suite select:focus, .trading-suite button:focus {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* Hide cube on devices smaller than 950px */
+@media (max-width: 950px) {
+    .hero-visual {
+        display: none;
     }
 }
 
