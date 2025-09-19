@@ -28,7 +28,7 @@ The application uses Flask Blueprints for modular organization:
 - **routes/blog.py**: WordPress REST API integration with Redis caching
 - **routes/contact.py**: Contact forms with EmailJS integration
 - **routes/trading_suite.py**: Trading tools with Binance API integration
-- **routes/marketing_solutions.py**: Marketing services for finance professionals
+- **routes/research.py**: Cross-chain infrastructure research and analysis
 
 ### Template Strategy
 Templates are embedded as Python strings within route files using `render_template_string()`. This approach keeps each route module self-contained with its HTML, CSS, and JavaScript.
