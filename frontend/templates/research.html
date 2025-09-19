@@ -1,0 +1,890 @@
+{% extends "base.html" %}
+
+{% block title %}Cross-Chain Research - Web3Fuel.io{% endblock %}
+
+{% block head %}
+<!-- Add EmailJS script -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-content-centered">
+            <h1>Cross-Chain:<br><span class="typewriter">Research</span></h1>
+            <h3>Deep-dive analysis and insights into cross-chain infrastructure, bridge security, and multi-chain protocols.</h3>
+
+        </div>
+    </div>
+</section>
+
+<!-- Research Publications Section -->
+<section class="research-publications">
+    <div class="container">
+        <div class="research-publications-content">
+            {% for paper in research_papers %}
+            <article class="research-article{% if paper.coming_soon %} coming-soon{% endif %}">
+                <div class="article-meta">
+                    <div class="article-tags">
+                        {% for tag in paper.tags %}
+                        <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="article-date">
+                        {% if paper.coming_soon %}
+                            Available on: {{ paper.date.strftime('%B %d, %Y') }}
+                        {% else %}
+                            {{ paper.date.strftime('%B %d, %Y') }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <h2 class="article-title">
+                    {% if paper.coming_soon %}Coming Soon: {% endif %}{{ paper.title }}
+                </h2>
+                
+                <div class="article-synopsis">
+                    <p>{{ paper.synopsis }}</p>
+                </div>
+                
+                <div class="article-details">
+                    <div class="details-horizontal">
+                        {% if not paper.coming_soon %}
+                        <span class="detail-text">📄 Length: {{ paper.pages }} pages</span>
+                        {% endif %}
+                        {% for factor in paper.key_factors[:2] %}
+                        <span class="detail-text">
+                            {% if loop.index == 1 %}🔒
+                            {% else %}⚡
+                            {% endif %}
+                            {{ factor }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="article-actions">
+                    {% if paper.coming_soon %}
+                    <button class="action-btn primary disabled" disabled>
+                        Read Online (Coming Soon)
+                    </button>
+                    <button class="action-btn secondary disabled" disabled>
+                        Download PDF (Coming Soon)
+                    </button>
+                    <button class="action-btn tertiary disabled" disabled>
+                        🔗 Share Research (Coming Soon)
+                    </button>
+                    {% else %}
+                    <a href="{{ url_for('research.article', slug=paper.slug) }}" class="action-btn primary">
+                        Read Online
+                    </a>
+                    <a href="{{ url_for('research.download_research', filename=paper.pdf_file) }}" class="action-btn secondary">
+                        Download PDF
+                    </a>
+                    <button class="action-btn tertiary" onclick="shareResearch('{{ paper.title }}', '{{ paper.synopsis }}')">
+                        🔗 Share Research
+                    </button>
+                    {% endif %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta">
+    <div class="container">
+        <div class="cta-container-horizontal">
+            <div class="cta-content-horizontal">
+                <div class="cta-text-horizontal">
+                    <h2 class="cta-title-horizontal">Stay Updated with Cross-Chain Research</h2>
+                </div>
+
+                <div class="email-signup-horizontal">
+                    <form id="contactForm" onsubmit="sendEmail(event)">
+                        <div class="email-form-horizontal">
+                            <input type="email" id="email" name="email" class="email-input-horizontal" placeholder="Enter your email address" required>
+                            <button type="submit" class="email-submit-horizontal">Subscribe</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Horizontal CTA Section Styles */
+.cta {
+    padding: 60px 0;
+    background: transparent;
+}
+
+.cta-container-horizontal {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 16px;
+    padding: 40px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+.cta-container-horizontal::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+.cta-content-horizontal {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.cta-text-horizontal {
+    flex: 1;
+    min-width: 300px;
+}
+
+.cta-title-horizontal {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+    text-shadow: 0 0 15px rgba(0, 255, 234, 0.5);
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.email-signup-horizontal {
+    flex: 1;
+    min-width: 300px;
+}
+
+.email-form-horizontal {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.email-input-horizontal {
+    flex: 1;
+    padding: 14px 20px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.email-input-horizontal:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(0, 255, 234, 0.3);
+}
+
+.email-input-horizontal::placeholder {
+    color: var(--text-muted, #a1a1aa);
+}
+
+.email-submit-horizontal {
+    padding: 14px 28px;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: black;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.email-submit-horizontal:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.4);
+}
+
+/* Responsive CTA */
+@media (max-width: 768px) {
+    .cta-content-horizontal {
+        flex-direction: column;
+        text-align: center;
+        gap: 25px;
+    }
+
+    .cta-text-horizontal,
+    .email-signup-horizontal {
+        min-width: 100%;
+    }
+
+    .cta-title-horizontal {
+        font-size: 24px;
+    }
+
+    .email-form-horizontal {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .email-input-horizontal,
+    .email-submit-horizontal {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .cta-container-horizontal {
+        padding: 30px 20px;
+    }
+
+    .cta-title-horizontal {
+        font-size: 22px;
+    }
+}
+
+/* Hero Section Override - More specific selector to override global styles */
+.hero {
+    padding: 2.5rem 0 !important;
+    min-height: auto !important;
+    border-bottom: none !important;
+}
+
+/* Hero Section Centered Styles */
+.hero-content-centered {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem 20px;
+}
+
+.hero-content-centered h1 {
+    font-size: 64px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 35px 0;
+    line-height: 1.1;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.typewriter {
+    color: var(--primary);
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    animation: typewriter-complete 8s infinite;
+}
+
+.typewriter::after {
+    content: '|';
+    color: var(--primary);
+    animation: blink 1s infinite;
+    text-shadow: 0 0 5px var(--primary);
+}
+
+@keyframes typewriter-complete {
+    /* Typing phase - 0 to 1.6 seconds */
+    0% {
+        width: 0;
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+    20% {
+        width: 100%;
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+
+    /* Glitch phase during display - 1.6 to 5.6 seconds */
+    21%, 22% {
+        width: 100%;
+        transform: translate(2px, 0) skew(0deg);
+        text-shadow: -2px 0 var(--secondary), 2px 0 var(--primary);
+    }
+    23%, 24% {
+        width: 100%;
+        transform: translate(-2px, 0) skew(0deg);
+        text-shadow: 2px 0 var(--secondary), -2px 0 var(--primary);
+    }
+    24.5% {
+        width: 100%;
+        transform: translate(0, 0) skew(5deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+
+    /* Continue glitch pattern */
+    30%, 31% {
+        width: 100%;
+        transform: translate(2px, 0) skew(0deg);
+        text-shadow: -2px 0 var(--secondary), 2px 0 var(--primary);
+    }
+    32%, 33% {
+        width: 100%;
+        transform: translate(-2px, 0) skew(0deg);
+        text-shadow: 2px 0 var(--secondary), -2px 0 var(--primary);
+    }
+    33.5% {
+        width: 100%;
+        transform: translate(0, 0) skew(5deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+
+    /* Normal display between glitches */
+    25%, 29%, 34%, 70% {
+        width: 100%;
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+
+    /* Backspace phase - realistic character-by-character deletion */
+    75% {
+        width: 87.5%; /* 7/8 characters - "Researc" */
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+    80% {
+        width: 75%; /* 6/8 characters - "Resear" */
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+    85% {
+        width: 62.5%; /* 5/8 characters - "Resea" */
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+    90% {
+        width: 50%; /* 4/8 characters - "Rese" */
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+    92% {
+        width: 37.5%; /* 3/8 characters - "Res" */
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+    94% {
+        width: 25%; /* 2/8 characters - "Re" */
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+    96% {
+        width: 12.5%; /* 1/8 characters - "R" */
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+    98%, 100% {
+        width: 0; /* Fully deleted */
+        transform: translate(0, 0) skew(0deg);
+        text-shadow: 0 0 10px var(--primary);
+    }
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+.hero-content-centered h3 {
+    font-size: 28px;
+    font-weight: 400;
+    color: #ffffff;
+    margin: 0 0 30px 0;
+    line-height: 1.4;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+
+/* Responsive adjustments for centered hero */
+@media (max-width: 768px) {
+    .hero-content-centered {
+        padding: 1rem 20px;
+    }
+
+    .hero-content-centered h1 {
+        font-size: 48px;
+    }
+
+    .hero-content-centered h3 {
+        font-size: 20px;
+    }
+
+}
+
+@media (max-width: 480px) {
+    .hero-content-centered {
+        padding: 1rem 15px;
+    }
+
+    .hero-content-centered h1 {
+        font-size: 40px;
+    }
+
+    .hero-content-centered h3 {
+        font-size: 18px;
+    }
+}
+
+/* Research Publications Styles - Matrix Theme */
+.research-publications {
+    padding: 0 0 2.5rem 0;
+    background: transparent;
+    position: relative;
+    margin-top: -1.5rem;
+}
+
+.research-publications-content {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 60px;
+}
+
+.research-article {
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.1);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.research-article::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+.research-article:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 255, 234, 0.2);
+    border-color: var(--primary);
+}
+
+.article-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.article-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tag {
+    background: rgba(0, 255, 234, 0.2);
+    color: var(--primary);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(0, 255, 234, 0.3);
+}
+
+.article-date {
+    color: var(--text-muted, #a1a1aa);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.article-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text, #ffffff);
+    margin: 0 0 20px 0;
+    line-height: 1.3;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.article-synopsis {
+    margin-bottom: 30px;
+}
+
+.article-synopsis p {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text, #ffffff);
+    margin: 0;
+}
+
+.article-details {
+    margin-bottom: 30px;
+    padding: 20px 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.detail-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.detail-item:last-child {
+    margin-bottom: 0;
+}
+
+.detail-icon {
+    font-size: 16px;
+    margin-top: 2px;
+}
+
+.details-horizontal {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.details-horizontal .detail-text:not(:last-child):after {
+    content: ' | ';
+    color: var(--primary);
+    margin-left: 15px;
+}
+
+.detail-text {
+    color: #e2e8f0;
+}
+
+.article-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.action-btn {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.action-btn.primary {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: black;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(0, 255, 234, 0.3);
+}
+
+.action-btn.primary:hover:not(.disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.5);
+    color: white;
+}
+
+.action-btn.secondary {
+    background: transparent;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+}
+
+.action-btn.secondary:hover:not(.disabled) {
+    background: var(--primary);
+    color: black;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.3);
+}
+
+.action-btn.tertiary {
+    background: transparent;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+}
+
+.action-btn.tertiary:hover {
+    background: var(--primary);
+    color: black;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.3);
+}
+
+.action-btn.disabled {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted, #a1a1aa);
+    cursor: not-allowed;
+    opacity: 0.6;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Coming Soon Article Styling */
+.research-article.coming-soon {
+    opacity: 0.5;
+    background: rgba(60, 60, 60, 0.3);
+    border-color: rgba(120, 120, 120, 0.2);
+}
+
+.research-article.coming-soon:hover {
+    transform: none;
+    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.research-article.coming-soon .article-title {
+    color: #a1a1aa;
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
+    background-clip: initial;
+}
+
+.research-article.coming-soon .article-synopsis p {
+    color: #71717a;
+}
+
+.research-article.coming-soon .tag {
+    background: rgba(255, 255, 255, 0.1);
+    color: #a1a1aa;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.research-article.coming-soon .detail-text {
+    color: #71717a;
+}
+
+.research-article.coming-soon .details-horizontal .detail-text:not(:last-child):after {
+    color: #71717a;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .research-publications {
+        padding: 60px 0;
+    }
+
+    .research-publications-content {
+        gap: 40px;
+    }
+
+    .research-article {
+        padding: 30px 20px;
+    }
+
+    .article-title {
+        font-size: 24px;
+    }
+
+    .article-meta {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .article-actions {
+        flex-direction: column;
+    }
+
+    .action-btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .details-horizontal {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .research-article {
+        padding: 25px 15px;
+    }
+
+    .article-title {
+        font-size: 22px;
+    }
+
+    .article-synopsis p {
+        font-size: 15px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Research subscription form submission
+    function sendEmail(event) {
+        event.preventDefault();
+
+        // Show loading state
+        const submitBtn = event.target.querySelector('.email-submit-horizontal');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Subscribing...';
+        submitBtn.disabled = true;
+
+        // Initialize EmailJS with your public key
+        emailjs.init("xSYgQUruN6qY2C0o2");
+
+        const params = {
+            name: 'Research Subscriber',
+            email: document.getElementById('email').value,
+            research_interests: 'all',
+            message: 'Subscribed via simplified research form'
+        };
+
+        // Send email
+        emailjs.send("service_gf8ewl9", "template_nad2dyc", params)
+            .then(() => {
+                alert("Thanks for subscribing to our research updates! You'll receive notifications when new papers are published.");
+                document.getElementById('contactForm').reset();
+
+                // Track newsletter subscription
+                if (typeof gtag !== 'undefined') {
+                    gtag('event', 'newsletter_subscribe', {
+                        'event_category': 'research',
+                        'event_label': 'simplified_form'
+                    });
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                alert("Sorry, there was an error submitting your subscription. Please try again or reach out directly via LinkedIn.");
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            });
+    }
+
+    // Share research function
+    function shareResearch(title, synopsis) {
+        if (navigator.share) {
+            navigator.share({
+                title: title,
+                text: synopsis,
+                url: window.location.href
+            }).catch(err => console.log('Error sharing:', err));
+        } else {
+            // Fallback for browsers without native sharing
+            const url = window.location.href;
+            const text = `Check out this research: ${title} - ${synopsis}`;
+            
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(`${text}\n\n${url}`).then(() => {
+                    alert('Research link copied to clipboard!');
+                });
+            } else {
+                // Final fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = `${text}\n\n${url}`;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Research link copied to clipboard!');
+            }
+        }
+        
+        // Track sharing
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'research_share', {
+                'event_category': 'research',
+                'event_label': title
+            });
+        }
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add subtle animations to articles on load
+        const articles = document.querySelectorAll('.research-article');
+        articles.forEach((article, index) => {
+            article.style.opacity = '0';
+            article.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                article.style.transition = 'all 0.6s ease';
+                article.style.opacity = '1';
+                article.style.transform = 'translateY(0)';
+            }, index * 150);
+        });
+
+        // Initialize research interests dropdown
+        const interestsSelect = document.getElementById('interests');
+        if (interestsSelect) {
+            interestsSelect.addEventListener('change', function() {
+                this.style.color = this.value ? 'var(--text-color)' : 'var(--text-muted)';
+            });
+        }
+
+        // Enhance mobile touch interactions
+        if ('ontouchstart' in window) {
+            document.querySelectorAll('.action-btn').forEach(btn => {
+                btn.style.webkitTapHighlightColor = 'rgba(0,123,255,0.2)';
+            });
+        }
+    });
+
+    // Animate progress bars on scroll
+    const observerOptions = {
+        threshold: 0.5,
+        rootMargin: '0px 0px -100px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const progressBars = entry.target.querySelectorAll('.metric-fill');
+                progressBars.forEach(bar => {
+                    const width = bar.style.width;
+                    bar.style.width = '0%';
+                    setTimeout(() => {
+                        bar.style.width = width;
+                    }, 100);
+                });
+            }
+        });
+    }, observerOptions);
+
+    // Observe the marketing dashboard
+    const dashboardSection = document.querySelector('.marketing-dashboard');
+    if (dashboardSection) {
+        observer.observe(dashboardSection);
+    }
+</script>
+{% endblock %}
