@@ -1,58 +1,529 @@
 {% extends "base.html" %}
 
-{% block title %}Blog - Web3Fuel.io{% endblock %}
+{% block title %}Cross-Chain Insights - Web3Fuel.io{% endblock %}
 
 {% block head %}
-    <meta name="description" content="Latest insights on blockchain, cryptocurrency, and Web3 technology from Web3Fuel.io">
-    <meta name="keywords" content="blockchain, cryptocurrency, web3, bitcoin, ethereum, trading, defi">
+    <meta name="description" content="Expert insights on cross-chain infrastructure, bridge security, and multi-chain development from Web3Fuel.io">
+    <meta name="keywords" content="cross-chain, blockchain, cryptocurrency, web3, bridge security, multi-chain, defi">
     <link rel="alternate" type="application/rss+xml" title="Web3Fuel Blog RSS" href="/blog/feed">
-    
+
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://web3fuel.io/blog/">
-    <meta property="og:title" content="Web3Fuel Blog - Blockchain & Crypto Insights">
-    <meta property="og:description" content="Latest insights on blockchain, cryptocurrency, and Web3 technology">
+    <meta property="og:title" content="Cross-Chain Insights - Web3Fuel.io">
+    <meta property="og:description" content="Expert insights on cross-chain infrastructure, bridge security, and multi-chain development">
     <meta property="og:image" content="https://web3fuel.io/static/og-image.png">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://web3fuel.io/blog/">
-    <meta property="twitter:title" content="Web3Fuel Blog - Blockchain & Crypto Insights">
-    <meta property="twitter:description" content="Latest insights on blockchain, cryptocurrency, and Web3 technology">
+    <meta property="twitter:title" content="Cross-Chain Insights - Web3Fuel.io">
+    <meta property="twitter:description" content="Expert insights on cross-chain infrastructure, bridge security, and multi-chain development">
     <meta property="twitter:image" content="https://web3fuel.io/static/og-image.png">
 {% endblock %}
 
 {% block content %}
-    <!-- Page Header -->
-    <div class="page-header">
-        <h1 class="page-title">Latest Articles</h1>
-        <p class="subtitle">Stay up to date with the latest AI trading & marketing insights, tutorials, and trends.</p>
-    </div>
-
-    <!-- Main Content -->
+<!-- Hero Section -->
+<section class="hero">
     <div class="container">
-        <!-- Featured Section -->
-        <section class="featured-section" id="featured-section">
-            <div id="featured-post"></div>
-        </section>
+        <div class="hero-content-centered">
+            <h1>Cross-Chain:<br><span class="typewriter">Insights</span></h1>
+            <h3>Analysis on bridge security, multi-chain protocols, and cross-chain infrastructure development.</h3>
+        </div>
+    </div>
+</section>
 
-        <!-- Latest Posts Section -->
-        <section>
-            <div class="posts-header">
-                <h2 class="posts-title">More Recent Posts</h2>
-                <span class="posts-count" id="posts-count"> < Showing 6 of 6 articles > </span>
+<!-- Search and Filter Section -->
+<section class="search-section">
+    <div class="container">
+        <div class="search-container">
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search articles..." class="search-input">
+                <button id="search-button" class="search-button">🔍</button>
+                <button id="clear-search" class="clear-button" style="display: none;">✕</button>
             </div>
-            <div class="loading" id="loading">
-                Loading posts...
+            <div class="category-filters">
+                <button class="category-btn active" data-category="">All Topics</button>
+                <div id="category-buttons"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Blog Content Section -->
+<section class="blog-section">
+    <div class="container">
+        <!-- Latest Posts Section -->
+        <div class="posts-section">
+            <div class="posts-header">
+                <div class="loading" id="loading">Loading insights...</div>
+                <div class="no-results" id="no-results" style="display: none;">
+                    <p>No articles found matching your search criteria.</p>
+                </div>
             </div>
             <div class="posts-grid" id="posts-grid"></div>
-        </section>
+        </div>
     </div>
+</section>
+
+<style>
+/* Hero Section Override */
+.hero {
+    padding: 2.5rem 0 !important;
+    min-height: auto !important;
+    border-bottom: none !important;
+}
+
+.hero-content-centered {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem 20px;
+}
+
+.hero-content-centered h1 {
+    font-size: 64px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 55px 0;
+    line-height: 1.3;
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+}
+
+.typewriter {
+    color: var(--primary);
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    white-space: nowrap;
+    width: 0;
+    animation: typewriter-insights 8s infinite;
+}
+
+.typewriter::after {
+    content: '|';
+    color: var(--primary);
+    animation: blink 1s infinite;
+    text-shadow: 0 0 5px var(--primary);
+}
+
+@keyframes typewriter-insights {
+    0% { width: 0; }
+    20% { width: 100%; }
+    70% { width: 100%; }
+    100% { width: 0; }
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+.hero-content-centered h3 {
+    font-size: 28px;
+    font-weight: 400;
+    color: #ffffff;
+    margin: 0;
+    line-height: 1.4;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+}
+
+/* Search Section */
+.search-section {
+    padding: 10px 0 10px 0;
+    background: transparent;
+}
+
+.search-container {
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.search-input {
+    flex: 1;
+    min-width: 300px;
+    max-width: 500px;
+    padding: 14px 20px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 15px rgba(0, 255, 234, 0.3);
+}
+
+.search-input::placeholder {
+    color: var(--text-muted, #a1a1aa);
+}
+
+.search-button {
+    padding: 14px 20px;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: black;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 16px;
+}
+
+.search-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.4);
+}
+
+.clear-button {
+    padding: 14px 16px;
+    background: transparent;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 16px;
+}
+
+.clear-button:hover {
+    background: var(--primary);
+    color: black;
+    transform: translateY(-2px);
+}
+
+.category-filters {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.category-btn {
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 20px;
+    color: #a1a1aa;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: capitalize;
+}
+
+.category-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.category-btn.active {
+    background: rgba(0, 255, 234, 0.2);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Blog Section */
+.blog-section {
+    padding: 20px 0 60px 0;
+    background: transparent;
+}
+
+.no-results {
+    text-align: center;
+    color: #a1a1aa;
+    font-size: 16px;
+    padding: 40px 20px;
+}
+
+.posts-section {
+    margin-bottom: 60px;
+}
+
+.posts-header {
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+.posts-header h2 {
+    font-size: 32px;
+    color: var(--primary);
+    margin: 0 0 20px 0;
+}
+
+.loading {
+    text-align: center;
+    color: var(--primary);
+    font-size: 16px;
+    padding: 20px;
+    display: none;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.post-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 15px 0;
+    line-height: 1.3;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.post-excerpt {
+    color: #e2e8f0;
+    line-height: 1.6;
+    margin: 0 0 20px 0;
+    font-size: 14px;
+}
+
+.post-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.meta-item {
+    color: #a1a1aa;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.read-more-btn {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    color: black;
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    display: inline-block;
+    width: fit-content;
+}
+
+.read-more-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.4);
+    color: white;
+}
+
+/* Posts Grid */
+.posts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.post-card {
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.1);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    position: relative;
+    cursor: pointer;
+}
+
+.post-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+.post-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 255, 234, 0.2);
+    border-color: var(--primary);
+}
+
+.post-image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    height: 180px;
+    position: relative;
+}
+
+.post-image.image-loading {
+    background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+    background-size: 400% 400%;
+    animation: gradientShift 2s ease infinite;
+}
+
+.post-image.image-error {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: black;
+    font-weight: bold;
+}
+
+.post-content {
+    padding: 25px;
+}
+
+.post-card .post-title {
+    font-size: 18px;
+    margin: 0 0 10px 0;
+}
+
+.post-card .post-excerpt {
+    font-size: 13px;
+    margin: 0 0 15px 0;
+}
+
+.post-card .post-meta {
+    margin-bottom: 15px;
+}
+
+.category-tags {
+    margin-bottom: 15px;
+}
+
+.category-tag {
+    background: rgba(0, 255, 234, 0.2);
+    color: var(--primary);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(0, 255, 234, 0.3);
+    margin-right: 8px;
+}
+
+.post-card .read-more-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+}
+
+/* Animations */
+.fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease forwards;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .posts-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+        max-width: 800px;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-content-centered h1 {
+        font-size: 48px;
+    }
+
+    .hero-content-centered h3 {
+        font-size: 20px;
+    }
+
+    .search-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input {
+        min-width: 100%;
+        margin-bottom: 10px;
+    }
+
+    .search-button,
+    .clear-button {
+        width: 100%;
+    }
+
+    .category-filters {
+        justify-content: center;
+    }
+
+    .posts-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        max-width: 100%;
+    }
+
+    .post-image {
+        height: 150px;
+    }
+
+    .post-content {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-content-centered h1 {
+        font-size: 40px;
+    }
+
+    .hero-content-centered h3 {
+        font-size: 18px;
+    }
+
+    .post-content {
+        padding: 15px;
+    }
+}
+</style>
 {% endblock %}
 
 {% block scripts %}
     {{ super() }}
     <script>
+        // ENHANCED JAVASCRIPT FOR SEARCH AND CATEGORIES
+
+        // Global state
+        let currentSearch = '';
+        let currentCategory = '';
+        let allCategories = new Set();
+        let isLoading = false;
+
         // ENHANCED JAVASCRIPT FOR BETTER IMAGE HANDLING
 
         // Get the best image size based on container dimensions and device pixel ratio
@@ -222,41 +693,115 @@
             console.log('Blog click tracked:', postTitle, postUrl);
         }
 
-        // Enhanced display featured post function
-        function displayFeaturedPost(post) {
-            const featuredContainer = document.getElementById('featured-post');
-            
-            featuredContainer.innerHTML = `
-                <article class="featured-post fade-in-up" data-post-url="${post.link}">
-                    <div class="featured-image" role="img" aria-label="Featured image for ${post.title}"></div>
-                    <div class="featured-content">
-                        <h3 class="post-title">${post.title}</h3>
-                        <p class="post-excerpt">${post.excerpt}</p>
-                        <div class="post-meta">
-                            <span class="meta-item">📅 ${formatDate(post.date)}</span>
-                            <span class="meta-item">✍️ ${post.author}</span>
-                            <span class="meta-item">📖 ${post.reading_time} min read</span>
-                        </div>
-                        <a href="${post.link}" class="read-more-btn read-more-btn-small" target="_blank" rel="noopener" onclick="event.stopPropagation(); trackBlogClick('${post.title}', '${post.link}')">
-                            Read Full Article →
-                        </a>
-                    </div>
-                </article>
-            `;
-            
-            // Apply responsive image after DOM is created
-            const imageContainer = featuredContainer.querySelector('.featured-image');
-            createResponsiveImage(post, imageContainer, true);
-            
-            // Add click handler to the entire post
-            const postElement = featuredContainer.querySelector('.featured-post');
-            postElement.addEventListener('click', function() {
-                trackBlogClick(post.title, post.link);
-                window.open(post.link, '_blank', 'noopener');
+        // Search and category functionality
+        function initializeSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchButton = document.getElementById('search-button');
+            const clearButton = document.getElementById('clear-search');
+
+            // Search input event listeners
+            searchInput.addEventListener('input', function() {
+                if (this.value.trim() !== currentSearch) {
+                    if (this.value.trim() === '') {
+                        clearSearch();
+                    } else {
+                        clearButton.style.display = 'block';
+                    }
+                }
             });
-            
-            document.getElementById('featured-section').style.display = 'block';
+
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            searchButton.addEventListener('click', performSearch);
+            clearButton.addEventListener('click', clearSearch);
         }
+
+        function performSearch() {
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput.value.trim();
+
+            if (query === currentSearch) return;
+
+            currentSearch = query;
+            updateTitle();
+            loadPosts(1, false);
+
+            if (query) {
+                document.getElementById('clear-search').style.display = 'block';
+            }
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('search-input');
+            const clearButton = document.getElementById('clear-search');
+
+            searchInput.value = '';
+            currentSearch = '';
+            clearButton.style.display = 'none';
+            updateTitle();
+            loadPosts(1, false);
+        }
+
+        function initializeCategories() {
+            // Category buttons will be populated after first API call
+        }
+
+        function populateCategories(posts) {
+            // Extract all categories from posts
+            posts.forEach(post => {
+                if (post.categories && post.categories.length > 0) {
+                    post.categories.forEach(category => {
+                        allCategories.add(category.slug);
+                    });
+                }
+            });
+
+            // Update category buttons
+            updateCategoryButtons();
+        }
+
+        function updateCategoryButtons() {
+            const categoryContainer = document.getElementById('category-buttons');
+            const sortedCategories = Array.from(allCategories).sort();
+
+            categoryContainer.innerHTML = sortedCategories.map(categorySlug =>
+                `<button class="category-btn" data-category="${categorySlug}">${categorySlug.replace(/-/g, ' ')}</button>`
+            ).join('');
+
+            // Add event listeners to category buttons
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const category = this.getAttribute('data-category');
+                    selectCategory(category);
+                });
+            });
+        }
+
+        function selectCategory(category) {
+            if (category === currentCategory) return;
+
+            currentCategory = category;
+
+            // Update active button
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-category') === category) {
+                    btn.classList.add('active');
+                }
+            });
+
+            updateTitle();
+            loadPosts(1, false);
+        }
+
+        function updateTitle() {
+            // Title functionality removed as per user request
+        }
+
 
         // Enhanced display posts grid function
         function displayPosts(posts, append = false) {
@@ -321,48 +866,44 @@
 
         // Enhanced fallback content
         function showFallbackContent() {
-            const featuredContainer = document.getElementById('featured-post');
             const postsGrid = document.getElementById('posts-grid');
-            
-            featuredContainer.innerHTML = `
-                <article class="featured-post">
-                    <div class="featured-image"></div>
-                    <div class="featured-content">
-                        <div class="post-meta">
-                            <span class="meta-item">📅 Latest</span>
-                            <span class="meta-item">✍️ Web3Fuel Team</span>
-                            <span class="meta-item">📖 5 min read</span>
-                        </div>
-                        <h3 class="post-title">Welcome to Web3Fuel Blog</h3>
-                        <p class="post-excerpt">Stay updated with the latest insights on blockchain technology, cryptocurrency markets, and Web3 innovations. Our expert analysis helps you navigate the rapidly evolving digital asset landscape.</p>
-                        <div class="category-tags">
-                            <span class="category-tag">Blockchain</span>
-                            <span class="category-tag">Cryptocurrency</span>
-                            <span class="category-tag">Web3</span>
-                        </div>
-                        <a href="https://web3fuel.io/blockchain/blog/" class="read-more-btn" target="_blank" rel="noopener">Visit Our Blog →</a>
-                    </div>
-                </article>
-            `;
             
             const fallbackPosts = [
                 {
-                    title: "Cryptocurrency Market Analysis",
-                    excerpt: "Deep dive into current market trends, price movements, and what to expect in the coming months.",
-                    category: "Analysis",
+                    title: "Cross-Chain Bridge Security Analysis",
+                    excerpt: "Deep dive into security models and risk assessment across major bridge protocols.",
+                    category: "Security",
                     readTime: "8 min read"
                 },
                 {
-                    title: "DeFi Protocol Security", 
-                    excerpt: "Understanding the latest security measures and best practices for decentralized finance protocols.",
-                    category: "DeFi",
+                    title: "Multi-Chain Portfolio Management",
+                    excerpt: "Best practices for managing assets across multiple blockchain networks efficiently.",
+                    category: "Portfolio",
                     readTime: "6 min read"
                 },
                 {
-                    title: "NFT Market Evolution",
-                    excerpt: "How the NFT landscape is changing and what new opportunities are emerging for creators and collectors.",
-                    category: "NFT", 
+                    title: "Bridge Fee Optimization Strategies",
+                    excerpt: "How to minimize costs when moving assets between different blockchain networks.",
+                    category: "Optimization",
                     readTime: "7 min read"
+                },
+                {
+                    title: "Layer 2 Infrastructure Overview",
+                    excerpt: "Comparative analysis of Arbitrum, Optimism, and Polygon scaling solutions.",
+                    category: "Infrastructure",
+                    readTime: "9 min read"
+                },
+                {
+                    title: "Cross-Chain DeFi Opportunities",
+                    excerpt: "Exploring yield farming and liquidity provision across multiple chains.",
+                    category: "DeFi",
+                    readTime: "5 min read"
+                },
+                {
+                    title: "Bridge Transaction Monitoring",
+                    excerpt: "Tools and techniques for tracking cross-chain transaction status and success rates.",
+                    category: "Monitoring",
+                    readTime: "6 min read"
                 }
             ];
             
@@ -384,51 +925,77 @@
                     </div>
                 </article>
             `).join('');
-            
-            document.getElementById('featured-section').style.display = 'block';
         }
 
         // Enhanced post loading with error handling
         async function loadPosts(page = 1, append = false) {
+            if (isLoading) return;
+            isLoading = true;
+
             const loadingElement = document.getElementById('loading');
-            
+            const noResultsElement = document.getElementById('no-results');
+
             try {
                 loadingElement.style.display = 'block';
-                
-                const response = await fetch(`/blog/api/posts?page=${page}&per_page=7`);
+                noResultsElement.style.display = 'none';
+
+                // Build query parameters
+                let url = `/blog/api/posts?page=${page}&per_page=6`;
+                if (currentSearch) {
+                    url += `&search=${encodeURIComponent(currentSearch)}`;
+                }
+                if (currentCategory) {
+                    url += `&category=${encodeURIComponent(currentCategory)}`;
+                }
+
+                const response = await fetch(url);
                 const data = await response.json();
-                
+
                 loadingElement.style.display = 'none';
-                
+
                 if (data.success && data.posts.length > 0) {
+                    // Populate categories from first load
+                    if (page === 1 && !append) {
+                        populateCategories(data.posts);
+                    }
+
                     // Preload critical images for better performance
                     if (page === 1) {
                         preloadCriticalImages(data.posts);
                     }
-                    
-                    if (page === 1) {
-                        // Load featured post
-                        displayFeaturedPost(data.posts[0]);
-                        // Load remaining posts in grid
-                        if (data.posts.length > 1) {
-                            displayPosts(data.posts.slice(1), append);
-                        }
-                    } else {
-                        displayPosts(data.posts, append);
+
+                    // Load all posts in grid
+                    displayPosts(data.posts, append);
+                } else if (currentSearch || currentCategory) {
+                    // Show no results message for searches/filters
+                    noResultsElement.style.display = 'block';
+                    if (!append) {
+                        document.getElementById('posts-grid').innerHTML = '';
                     }
                 } else {
-                    // Show fallback content
+                    // Show fallback content for general failure
                     showFallbackContent();
                 }
             } catch (error) {
                 console.error('Error loading posts:', error);
                 loadingElement.style.display = 'none';
-                showFallbackContent();
+                if (currentSearch || currentCategory) {
+                    noResultsElement.style.display = 'block';
+                    if (!append) {
+                        document.getElementById('posts-grid').innerHTML = '';
+                    }
+                } else {
+                    showFallbackContent();
+                }
+            } finally {
+                isLoading = false;
             }
         }
 
         // Initialize when DOM is ready
         document.addEventListener('DOMContentLoaded', () => {
+            initializeSearch();
+            initializeCategories();
             loadPosts(1);
         });
     </script>
