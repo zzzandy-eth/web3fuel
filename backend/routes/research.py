@@ -73,7 +73,7 @@ def research():
     from flask import render_template
     return render_template('research.html', research_papers=research_papers, research_metrics=research_metrics)
 
-@research_bp.route('/article/<slug>')
+@research_bp.route('/<slug>')
 def article(slug):
     """Individual research article page"""
     from flask import render_template, abort
@@ -91,7 +91,7 @@ def article(slug):
     if article.get('coming_soon', False):
         abort(404)  # Don't show coming soon articles
 
-    return render_template('research_article.html', article=article)
+    return render_template('research_article/security.html', article=article)
 
 @research_bp.route('/download-research/<filename>')
 def download_research(filename):
