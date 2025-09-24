@@ -1133,7 +1133,7 @@ select.form-input option:hover {
 }
 
 .newsletter-button {
-    background: #00ffea;
+    background: #11CBE9;
     color: #000000;
     border: none;
     padding: 0.75rem 1.5rem;
@@ -1195,6 +1195,25 @@ select.form-input option:hover {
     font-size: 1rem;
     margin: 0;
     font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', sans-serif;
+}
+
+/* Centered footer layout for research and tools pages */
+.footer-centered {
+    justify-content: center !important;
+}
+
+.social-centered {
+    text-align: center;
+    max-width: none;
+}
+
+.social-centered .social-title {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.social-centered .social-links {
+    justify-content: center;
 }
 
 /* Animations */
