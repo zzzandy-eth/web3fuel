@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Web3Fuel.io is a Flask-based web application offering dual AI-powered services: cryptocurrency trading tools and marketing solutions for financial professionals. The application demonstrates how AI algorithms originally designed for financial market prediction can be adapted for marketing intelligence.
+Web3Fuel.io is a Flask-based web application focused on cross-chain infrastructure research and tools. The application provides comprehensive analysis of bridge security, protocol comparisons, and practical tools for multi-chain operations.
 
 ## Common Commands
 
@@ -27,7 +27,7 @@ The application uses Flask Blueprints for modular organization:
 - **routes/home.py**: Main homepage with embedded HTML templates
 - **routes/blog.py**: WordPress REST API integration with Redis caching
 - **routes/contact.py**: Contact forms with EmailJS integration
-- **routes/trading_suite.py**: Trading tools with Binance API integration
+- **routes/tools.py**: Cross-chain tools and infrastructure analysis
 - **routes/research.py**: Cross-chain infrastructure research and analysis
 
 ### Template Strategy
@@ -35,7 +35,7 @@ Templates are embedded as Python strings within route files using `render_templa
 
 ### External Integrations
 - **WordPress REST API**: Blog content with advanced caching (Redis + in-memory fallback)
-- **Binance API**: Real-time cryptocurrency data for trading tools
+- **Cross-chain APIs**: Multi-chain data aggregation and bridge monitoring
 - **EmailJS**: Client-side form submissions for contact forms
 
 ### Caching Architecture
@@ -55,13 +55,13 @@ The application handles:
 - Real-time cryptocurrency market data visualization using Plotly.js
 - WordPress blog content aggregation and display
 - Contact form processing with appointment scheduling
-- Trading calculators (position sizing, risk/reward, P&L)
+- Cross-chain tools (bridge fee comparison, portfolio tracking, gas optimization)
 
 ### Frontend Components
 Each route contains embedded CSS/JS creating:
 - Interactive 3D visualizations and matrix animations
 - Responsive design with mobile-first approach
-- Dynamic charts and trading calculators
+- Interactive dashboards and cross-chain analytics
 - Modal popups and form validations
 
 ## Development Notes
