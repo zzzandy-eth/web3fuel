@@ -1,6 +1,63 @@
-﻿__pycache__/
+﻿# Python
+__pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environment and secrets
 .env
+.env.local
+.env.production
+*.key
+*.pem
+
+# Flask
 instance/
+*.db
+*.sqlite*
+
+# IDE and editors
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and databases
+*.log
+logs/
+*.sql
+
+# Claude-related files (AI development)
+.claude
+.claude/
+claude.md
+CLAUDE.md
+
+# Node modules (if any frontend tooling added later)
+node_modules/
+npm-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+
+# Local development
+.pytest_cache/
+.coverage
+htmlcov/

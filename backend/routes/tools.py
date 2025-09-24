@@ -74,7 +74,7 @@ tools_metrics = {
 # Redirect old trading-suite URL to new tools URL for SEO
 @tools_bp.route('/trading-suite')
 @tools_bp.route('/trading-suite/')
-def redirect_trading_suite():
+def redirect_legacy_trading_suite():
     return redirect(url_for('tools.tools'), code=301)
 
 @tools_bp.route('/<slug>')
@@ -167,7 +167,7 @@ def tools():
                     <a href="{{ url_for('tools.tool', slug=tool.slug) }}" class="action-btn primary" target="_blank">
                         Launch Tool
                     </a>
-                    <a href="https://github.com/zzzandy-eth" class="action-btn secondary" target="_blank">
+                    <a href="https://github.com/zzzandy-eth/web3fuel/" class="action-btn secondary" target="_blank">
                         View Source
                     </a>
                     {% elif tool.status == 'beta' %}
