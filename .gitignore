@@ -48,6 +48,11 @@ logs/
 claude.md
 CLAUDE.md
 
+# Reply Assistant - Proprietary feed monitoring
+backend/services/feed_monitor.py
+*nitter*
+*rss_bridge*
+
 # Node modules (if any frontend tooling added later)
 node_modules/
 npm-debug.log*
