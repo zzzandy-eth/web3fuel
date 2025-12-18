@@ -29,6 +29,7 @@ DISCORD_CLIENT_ID = os.getenv('DISCORD_CLIENT_ID')
 DISCORD_CLIENT_SECRET = os.getenv('DISCORD_CLIENT_SECRET')
 DISCORD_REDIRECT_URI = os.getenv('DISCORD_REDIRECT_URI', 'http://localhost:5000/tools/reply-assistant/auth/discord/callback')
 CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY')
+ADMIN_DISCORD_ID = os.getenv('ADMIN_DISCORD_ID', '597173667394224139')
 
 # Database configuration
 DB_CONFIG = {
@@ -214,6 +215,13 @@ def get_user_stats(user_discord_id):
 @reply_assistant_bp.route('/', methods=['GET'])
 def index():
     """Password authentication page"""
+
+    # DEV MODE: Auto-login for local testing (bypass all auth)
+    if request.host.startswith('127.0.0.1') or request.host.startswith('localhost'):
+        session['authenticated'] = True
+        session['user_discord_id'] = ADMIN_DISCORD_ID
+        session['discord_username'] = 'DevUser'
+        return redirect(url_for('reply_assistant.dashboard'))
 
     # Check if already authenticated
     if 'authenticated' in session and session['authenticated']:
@@ -702,31 +710,53 @@ def logout():
 def dashboard():
     """Main dashboard"""
 
+    # DEV MODE: Auto-login for local testing (bypass Discord OAuth)
+    if os.getenv('FLASK_ENV') == 'development' or request.host.startswith('127.0.0.1') or request.host.startswith('localhost'):
+        if 'user_discord_id' not in session:
+            # Auto-set admin user for local testing
+            session['user_discord_id'] = ADMIN_DISCORD_ID
+            session['discord_username'] = 'DevUser'
+
     if 'user_discord_id' not in session:
         return redirect(url_for('reply_assistant.index'))
 
     user_discord_id = session['user_discord_id']
 
-    # Get user info
-    conn = get_db_connection()
-    if not conn:
-        return "Database error", 500
+    # DEV MODE: Mock user data for local testing (no database needed)
+    is_local = request.host.startswith('127.0.0.1') or request.host.startswith('localhost')
+    if is_local:
+        user = {
+            'discord_id': ADMIN_DISCORD_ID,
+            'discord_username': 'DevUser',
+            'is_active': True,
+            'is_unlimited': True
+        }
+        stats = {
+            'monitored_accounts': 0,
+            'pending_replies': 0,
+            'total_replies': 0
+        }
+    else:
+        # Get user info from database
+        conn = get_db_connection()
+        if not conn:
+            return "Database error", 500
 
-    cursor = get_db_cursor(conn)
+        cursor = get_db_cursor(conn)
 
-    cursor.execute("""
-        SELECT * FROM users WHERE discord_id = %s
-    """, (user_discord_id,))
+        cursor.execute("""
+            SELECT * FROM users WHERE discord_id = %s
+        """, (user_discord_id,))
 
-    user = cursor.fetchone()
-    cursor.close()
-    conn.close()
+        user = cursor.fetchone()
+        cursor.close()
+        conn.close()
 
-    if not user or not user['is_active']:
-        return "Access denied", 403
+        if not user or not user['is_active']:
+            return "Access denied", 403
 
-    # Get stats
-    stats = get_user_stats(user_discord_id)
+        # Get stats
+        stats = get_user_stats(user_discord_id)
 
     html = """
     <!DOCTYPE html>
@@ -982,6 +1012,7 @@ def dashboard():
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
                 gap: 20px;
+                margin-bottom: 30px;
             }
             .nav-card {
                 background: #161b22;
@@ -1246,36 +1277,185 @@ def dashboard():
                 background: linear-gradient(135deg, #2ea043 0%, #3fb950 100%);
                 border-color: #2ea043;
             }
+
+            /* Manual Reply Generator Styles */
+            .manual-reply-section {
+                margin-bottom: 30px;
+            }
+            .tool-card.full-width {
+                max-width: 100%;
+            }
+            .reply-generator-form {
+                margin-top: 20px;
+            }
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 15px;
+                margin-bottom: 15px;
+            }
+            @media (max-width: 600px) {
+                .form-row {
+                    grid-template-columns: 1fr;
+                }
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            .form-group label {
+                display: block;
+                margin-bottom: 6px;
+                color: #c9d1d9;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            .form-group .required {
+                color: #f85149;
+            }
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                width: 100%;
+                padding: 10px 12px;
+                background: #0d1117;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                color: #c9d1d9;
+                font-size: 14px;
+                font-family: inherit;
+            }
+            .form-group input:focus,
+            .form-group select:focus,
+            .form-group textarea:focus {
+                outline: none;
+                border-color: #58a6ff;
+                box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+            }
+            .form-group textarea {
+                resize: vertical;
+                min-height: 100px;
+            }
+            .conversation-thread {
+                background: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 15px;
+            }
+            .thread-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 10px;
+                color: #8b949e;
+                font-size: 14px;
+            }
+            .btn-small {
+                padding: 5px 10px;
+                font-size: 12px;
+                background: #21262d;
+                border: 1px solid #30363d;
+                border-radius: 4px;
+                color: #c9d1d9;
+                cursor: pointer;
+            }
+            .btn-small:hover {
+                background: #30363d;
+            }
+            .thread-message {
+                background: #0d1117;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                padding: 12px;
+                margin-bottom: 10px;
+                position: relative;
+            }
+            .thread-message-header {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 8px;
+            }
+            .thread-message-header select {
+                padding: 4px 8px;
+                font-size: 12px;
+                background: #21262d;
+                border: 1px solid #30363d;
+                border-radius: 4px;
+                color: #c9d1d9;
+            }
+            .thread-message textarea {
+                width: 100%;
+                padding: 8px;
+                background: #161b22;
+                border: 1px solid #30363d;
+                border-radius: 4px;
+                color: #c9d1d9;
+                font-size: 13px;
+                resize: vertical;
+                min-height: 60px;
+            }
+            .thread-message .btn-remove {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                background: none;
+                border: none;
+                color: #f85149;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 2px 6px;
+            }
+            .reply-result {
+                margin-top: 20px;
+                padding: 20px;
+                background: #161b22;
+                border: 1px solid #238636;
+                border-radius: 8px;
+            }
+            .result-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 12px;
+            }
+            .result-header .result-label {
+                color: #58a6ff;
+                font-weight: 600;
+                font-size: 14px;
+            }
+            .btn-copy {
+                padding: 6px 12px;
+                font-size: 12px;
+                background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+                border: none;
+                border-radius: 4px;
+                color: white;
+                cursor: pointer;
+                font-weight: 500;
+            }
+            .btn-copy:hover {
+                background: linear-gradient(135deg, #2ea043 0%, #3fb950 100%);
+            }
+            .result-reply {
+                background: #0d1117;
+                padding: 15px;
+                border-radius: 6px;
+                color: #e6edf3;
+                font-size: 15px;
+                line-height: 1.5;
+                margin-bottom: 12px;
+                white-space: pre-wrap;
+            }
+            .result-meta {
+                display: flex;
+                gap: 20px;
+                color: #8b949e;
+                font-size: 13px;
+                margin-bottom: 15px;
+            }
         </style>
     </head>
     <body>
-        <!-- Site Header -->
-        <header class="site-header">
-            <div class="header-container">
-                <a href="/" class="logo">
-                    <span class="logo-icon">🚀</span>
-                    <span class="logo-text">Web3Fuel.io</span>
-                </a>
-                <nav class="nav-desktop">
-                    <a href="/tools" class="nav-link active">Tools</a>
-                    <a href="/research" class="nav-link">Research</a>
-                    <a href="/blog" class="nav-link">Blog</a>
-                    <a href="/contact" class="nav-link">Contact</a>
-                </nav>
-                <button class="menu-button" id="menu-button">☰</button>
-            </div>
-            <!-- Mobile Menu -->
-            <div class="mobile-menu" id="mobile-menu">
-                <button class="close-menu" id="close-menu">✕</button>
-                <nav>
-                    <a href="/tools" class="mobile-nav-link active">Tools</a>
-                    <a href="/research" class="mobile-nav-link">Research</a>
-                    <a href="/blog" class="mobile-nav-link">Blog</a>
-                    <a href="/contact" class="mobile-nav-link">Contact</a>
-                </nav>
-            </div>
-        </header>
-
         <!-- Toast Container -->
         <div class="toast-container" id="toastContainer"></div>
 
@@ -1326,17 +1506,83 @@ def dashboard():
                 </div>
             </div>
 
-            <div class="tools-grid">
-                <div class="tool-card">
-                    <h3>🧪 Test AI Generation</h3>
-                    <p>Test the reply generation without waiting for monitoring</p>
-                    <form id="testForm" onsubmit="return testGeneration(event)">
-                        <textarea id="testPostContent" placeholder="Paste a social media post here to test AI reply generation..." rows="4" required></textarea>
-                        <button type="submit" id="testBtn">Generate Reply</button>
-                    </form>
-                    <div id="testResult" style="display:none;"></div>
-                </div>
+            <div class="nav-grid">
+                <a href="/tools/reply-assistant/accounts" class="nav-card">
+                    <h3>📱 Manage Accounts</h3>
+                    <p>Add, remove, or pause monitored accounts from X, LinkedIn, and other platforms.</p>
+                </a>
 
+                <a href="/tools/reply-assistant/settings" class="nav-card">
+                    <h3>⚙️ Filter Settings</h3>
+                    <p>Configure keywords, engagement thresholds, and quality filters for notifications.</p>
+                </a>
+
+                <a href="/tools/reply-assistant/history" class="nav-card">
+                    <h3>📊 Reply History</h3>
+                    <p>View your posted replies, engagement metrics, and performance analytics.</p>
+                </a>
+            </div>
+
+            <!-- Manual Reply Generator -->
+            <div class="manual-reply-section">
+                <div class="tool-card full-width">
+                    <h3>💬 Manual Reply Generator</h3>
+                    <p>Paste a post you found and get an AI-suggested reply to copy/paste</p>
+
+                    <div class="reply-generator-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="replyPlatform">Platform</label>
+                                <select id="replyPlatform">
+                                    <option value="x">X (Twitter)</option>
+                                    <option value="linkedin">LinkedIn</option>
+                                    <option value="discord">Discord</option>
+                                    <option value="telegram">Telegram</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="replyAuthor">Author/Account (optional)</label>
+                                <input type="text" id="replyAuthor" placeholder="e.g., Axelar, VitalikButerin, CEO of Axelar">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="originalPost">Original Post <span class="required">*</span></label>
+                            <textarea id="originalPost" placeholder="Paste the original post you want to reply to..." rows="4" required></textarea>
+                        </div>
+
+                        <div id="conversationThread" class="conversation-thread">
+                            <div class="thread-header">
+                                <span>Conversation Thread (optional)</span>
+                                <button type="button" class="btn-small" onclick="addThreadMessage()">+ Add Reply</button>
+                            </div>
+                            <div id="threadMessages"></div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="replyContext">Additional Context (optional)</label>
+                            <input type="text" id="replyContext" placeholder="e.g., I work in cross-chain infrastructure, I'm bullish on their product">
+                        </div>
+
+                        <button type="button" id="generateReplyBtn" onclick="generateManualReply()">Generate Reply</button>
+                    </div>
+
+                    <div id="manualReplyResult" class="reply-result" style="display:none;">
+                        <div class="result-header">
+                            <span class="result-label">Suggested Reply</span>
+                            <button type="button" class="btn-copy" onclick="copyReply()">Copy</button>
+                        </div>
+                        <div class="result-reply" id="suggestedReplyText"></div>
+                        <div class="result-meta">
+                            <span id="replyCharCount"></span>
+                            <span id="replyQuality"></span>
+                        </div>
+                        <button type="button" class="btn-secondary" onclick="regenerateReply()">Regenerate</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tools-grid">
                 <div class="tool-card">
                     <h3>📊 API Usage Today</h3>
                     <p>Track your Claude API usage and costs</p>
@@ -1356,23 +1602,6 @@ def dashboard():
                     </div>
                     <button onclick="refreshUsage()" style="margin-top: 15px; font-size: 13px; padding: 8px 16px;">Refresh</button>
                 </div>
-            </div>
-
-            <div class="nav-grid">
-                <a href="/tools/reply-assistant/accounts" class="nav-card">
-                    <h3>📱 Manage Accounts</h3>
-                    <p>Add, remove, or pause monitored accounts from X, LinkedIn, and other platforms.</p>
-                </a>
-
-                <a href="/tools/reply-assistant/settings" class="nav-card">
-                    <h3>⚙️ Filter Settings</h3>
-                    <p>Configure keywords, engagement thresholds, and quality filters for notifications.</p>
-                </a>
-
-                <a href="/tools/reply-assistant/history" class="nav-card">
-                    <h3>📊 Reply History</h3>
-                    <p>View your posted replies, engagement metrics, and performance analytics.</p>
-                </a>
             </div>
         </div>
 
@@ -1474,58 +1703,114 @@ def dashboard():
                 }
             }
 
-            // ============== Test AI Generation ==============
-            async function testGeneration(event) {
-                event.preventDefault();
+            // ============== Manual Reply Generator ==============
+            let threadMessageCount = 0;
+            let lastGenerationParams = null;
 
-                const btn = document.getElementById('testBtn');
-                const result = document.getElementById('testResult');
-                const postContent = document.getElementById('testPostContent').value;
+            function addThreadMessage() {
+                threadMessageCount++;
+                const container = document.getElementById('threadMessages');
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'thread-message';
+                messageDiv.id = `threadMsg${threadMessageCount}`;
+                messageDiv.innerHTML = `
+                    <button type="button" class="btn-remove" onclick="removeThreadMessage(${threadMessageCount})">x</button>
+                    <div class="thread-message-header">
+                        <select id="threadRole${threadMessageCount}">
+                            <option value="me">My Reply</option>
+                            <option value="them">Their Reply</option>
+                        </select>
+                    </div>
+                    <textarea id="threadText${threadMessageCount}" placeholder="Paste the reply text..." rows="2"></textarea>
+                `;
+                container.appendChild(messageDiv);
+            }
+
+            function removeThreadMessage(id) {
+                const msg = document.getElementById(`threadMsg${id}`);
+                if (msg) msg.remove();
+            }
+
+            function getThreadMessages() {
+                const messages = [];
+                document.querySelectorAll('.thread-message').forEach(msg => {
+                    const id = msg.id.replace('threadMsg', '');
+                    const role = document.getElementById(`threadRole${id}`)?.value;
+                    const text = document.getElementById(`threadText${id}`)?.value?.trim();
+                    if (role && text) {
+                        messages.push({ role, text });
+                    }
+                });
+                return messages;
+            }
+
+            async function generateManualReply() {
+                const btn = document.getElementById('generateReplyBtn');
+                const result = document.getElementById('manualReplyResult');
+
+                const platform = document.getElementById('replyPlatform').value;
+                const author = document.getElementById('replyAuthor').value.trim();
+                const originalPost = document.getElementById('originalPost').value.trim();
+                const context = document.getElementById('replyContext').value.trim();
+                const thread = getThreadMessages();
+
+                if (!originalPost) {
+                    showToast('Please paste the original post', 'error');
+                    return;
+                }
+
+                // Store params for regeneration
+                lastGenerationParams = { platform, author, originalPost, context, thread };
 
                 setButtonLoading(btn, true);
                 result.style.display = 'none';
 
                 try {
-                    const response = await fetch('/tools/reply-assistant/api/test-generation', {
+                    const response = await fetch('/tools/reply-assistant/api/manual-reply', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ post_content: postContent })
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            platform,
+                            author,
+                            original_post: originalPost,
+                            context,
+                            thread
+                        })
                     });
 
                     const data = await response.json();
 
                     if (response.ok) {
-                        result.className = '';
-                        result.innerHTML = `
-                            <div class="result-label">Quality Score</div>
-                            <div class="result-value"><strong>${data.quality_score}/10</strong> - ${data.reasoning}</div>
-                            <div class="result-label">Suggested Reply</div>
-                            <div class="result-value">${data.suggested_reply}</div>
-                            <div class="result-label">Cost</div>
-                            <div class="result-value">${data.cost} (${data.tokens.input} in + ${data.tokens.output} out)</div>
-                        `;
-                        showToast('Reply generated successfully!', 'success');
+                        document.getElementById('suggestedReplyText').textContent = data.reply;
+                        document.getElementById('replyCharCount').textContent = `${data.reply.length} characters`;
+                        document.getElementById('replyQuality').textContent = `Quality: ${data.quality_score}/10`;
+                        result.style.display = 'block';
+                        showToast('Reply generated!', 'success');
+                        refreshUsage();
                     } else {
-                        result.className = 'error';
-                        result.innerHTML = `<strong>Error:</strong> ${data.error || 'Failed to generate reply'}`;
                         showToast(data.error || 'Failed to generate reply', 'error');
                     }
 
-                    result.style.display = 'block';
-
-                    // Refresh usage stats
-                    refreshUsage();
-
                 } catch (error) {
-                    result.className = 'error';
-                    result.innerHTML = `<strong>Error:</strong> ${error.message}`;
-                    result.style.display = 'block';
                     showToast('Network error. Please try again.', 'error');
                 } finally {
                     setButtonLoading(btn, false);
                 }
+            }
+
+            async function regenerateReply() {
+                if (lastGenerationParams) {
+                    await generateManualReply();
+                }
+            }
+
+            function copyReply() {
+                const replyText = document.getElementById('suggestedReplyText').textContent;
+                navigator.clipboard.writeText(replyText).then(() => {
+                    showToast('Copied to clipboard!', 'success');
+                }).catch(() => {
+                    showToast('Failed to copy', 'error');
+                });
             }
 
             // ============== Refresh Usage Statistics ==============
@@ -2609,6 +2894,147 @@ Format your response as JSON:
 
     except Exception as e:
         logger.error(f"Test generation failed: {e}", exc_info=True)
+        return jsonify({'error': 'Generation failed. Please try again.'}), 500
+
+
+# ============================================
+# API: Manual Reply Generator
+# ============================================
+
+@reply_assistant_bp.route('/api/manual-reply', methods=['POST'])
+@limiter.limit("20 per hour")
+def manual_reply():
+    """Generate a human-like reply for manual copy/paste"""
+
+    if 'user_discord_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+
+    user_discord_id = session['user_discord_id']
+
+    # Check rate limit
+    allowed, error_msg = check_rate_limit(user_discord_id)
+    if not allowed:
+        return jsonify({'error': error_msg}), 429
+
+    data = request.get_json()
+    platform = data.get('platform', 'x')
+    author = sanitize_input(data.get('author', ''), strip_all=True)
+    original_post = sanitize_input(data.get('original_post', ''), strip_all=True)
+    context = sanitize_input(data.get('context', ''), strip_all=True)
+    thread = data.get('thread', [])  # List of {role: 'me'|'them', text: '...'}
+
+    if not original_post or len(original_post) < 10:
+        return jsonify({'error': 'Post content too short (minimum 10 characters)'}), 400
+
+    # Platform-specific settings
+    platform_config = {
+        'x': {
+            'max_chars': 280,
+            'style': 'concise, punchy, conversational. Twitter replies should feel natural and quick - like a real person responding in the moment. Keep it short.'
+        },
+        'linkedin': {
+            'max_chars': 3000,
+            'style': 'professional but warm, adds value to the discussion. LinkedIn replies can be slightly longer and more thoughtful, but still conversational.'
+        },
+        'discord': {
+            'max_chars': 2000,
+            'style': 'casual and friendly, like talking to a peer. Discord is informal - feel free to be relaxed.'
+        },
+        'telegram': {
+            'max_chars': 4096,
+            'style': 'direct and casual. Telegram conversations are usually quick back-and-forth exchanges.'
+        }
+    }
+
+    config = platform_config.get(platform, platform_config['x'])
+
+    # Build conversation context
+    conversation_context = ""
+    if thread:
+        conversation_context = "\n\nConversation thread so far:"
+        for msg in thread:
+            role_label = "You" if msg.get('role') == 'me' else "Them"
+            conversation_context += f"\n{role_label}: {msg.get('text', '')}"
+        conversation_context += "\n\nNow generate your next reply in this conversation."
+
+    # Build author context
+    author_context = ""
+    if author:
+        author_context = f"\nThe original post is from: {author}"
+
+    # Build additional context
+    user_context = ""
+    if context:
+        user_context = f"\nAdditional context about you (the replier): {context}"
+
+    try:
+        client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
+
+        prompt = f"""You are crafting a social media reply. Your goal is to sound completely human - like a real person genuinely engaging with the content.
+
+Platform: {platform.upper()}
+Max characters: {config['max_chars']}
+Style: {config['style']}{author_context}{user_context}
+
+Original post:
+"{original_post}"{conversation_context}
+
+CRITICAL REQUIREMENTS:
+1. Sound like a real human, not an AI or a marketing account
+2. NO emojis whatsoever
+3. Be specific to what was said - avoid generic responses
+4. Add genuine value or perspective to the conversation
+5. Match the energy and tone of the original post
+6. Keep it natural - don't be overly formal or stiff
+7. If disagreeing, be respectful but authentic
+8. Vary sentence structure - don't be predictable
+9. It's okay to be brief if that fits better
+
+Generate ONLY the reply text - no quotes, no explanations, no preamble. Just the reply itself.
+Also provide a quality score (1-10) for how human and engaging the reply sounds.
+
+Format your response as JSON:
+{{
+    "reply": "your reply here",
+    "quality_score": 8
+}}"""
+
+        message = client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        response_text = message.content[0].text
+
+        # Parse JSON response
+        import re
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if json_match:
+            reply_data = json.loads(json_match.group())
+        else:
+            # Fallback - treat entire response as reply
+            reply_data = {
+                'reply': response_text.strip()[:config['max_chars']],
+                'quality_score': 6
+            }
+
+        # Ensure reply is within character limit
+        reply_text = reply_data['reply'][:config['max_chars']]
+
+        # Increment usage counter
+        increment_usage(user_discord_id)
+
+        return jsonify({
+            'success': True,
+            'reply': reply_text,
+            'quality_score': reply_data.get('quality_score', 6),
+            'platform': platform,
+            'char_count': len(reply_text)
+        })
+
+    except Exception as e:
+        logger.error(f"Manual reply generation failed: {e}", exc_info=True)
         return jsonify({'error': 'Generation failed. Please try again.'}), 500
 
 
