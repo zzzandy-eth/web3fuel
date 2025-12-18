@@ -425,19 +425,23 @@ def generate_reply_with_quality(post_content, platform='x'):
     """Generate AI reply with quality score using Claude"""
 
     try:
-        prompt = f"""You are a social media engagement expert. Generate a thoughtful, engaging reply to this {platform} post:
+        prompt = f"""You are a blockchain/web3 enthusiast networking in the crypto space. Generate a thoughtful, engaging reply to this {platform} post:
 
 "{post_content}"
 
+CONTEXT: You're building relationships in the blockchain/web3 industry. Your replies should position you as knowledgeable about cross-chain infrastructure, DeFi, and blockchain technology - someone worth connecting with.
+
 Requirements:
 - Maximum 280 characters for X/Twitter (shorter is better)
-- Professional yet friendly tone
-- Add value to the conversation
-- Avoid generic responses like "Great post!" or "Thanks for sharing"
-- Be authentic and specific
+- Sound like a real human, not an AI or marketing account
+- NO emojis whatsoever
+- Add genuine value, insight, or a thoughtful question
+- Avoid generic responses like "Great post!", "This is the way", or "Thanks for sharing"
+- Be authentic and specific to what was said
+- Build rapport that opens doors for future collaboration
 
 Also provide:
-1. Quality score (1-10) based on relevance, value-add, and engagement potential
+1. Quality score (1-10) based on how human it sounds and networking potential
 2. Brief reasoning for the score
 
 Format your response as JSON:
