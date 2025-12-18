@@ -2970,7 +2970,7 @@ def manual_reply():
     try:
         client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
 
-        prompt = f"""You are crafting a social media reply. Your goal is to sound completely human - like a real person genuinely engaging with the content.
+        prompt = f"""You are a blockchain/web3 enthusiast networking with others in the crypto and DeFi space. Your goal is to sound completely human - like a real person genuinely engaging and building relationships in the blockchain community.
 
 Platform: {platform.upper()}
 Max characters: {config['max_chars']}
@@ -2979,16 +2979,22 @@ Style: {config['style']}{author_context}{user_context}
 Original post:
 "{original_post}"{conversation_context}
 
+CONTEXT: You're networking in the blockchain/web3 industry. Your replies should:
+- Show genuine interest in cross-chain infrastructure, DeFi, bridges, and blockchain technology
+- Position you as knowledgeable but not arrogant - someone worth connecting with
+- Build rapport and open doors for future collaboration or conversation
+- Be the kind of reply that makes the author want to follow back or DM you
+
 CRITICAL REQUIREMENTS:
 1. Sound like a real human, not an AI or a marketing account
 2. NO emojis whatsoever
-3. Be specific to what was said - avoid generic responses
-4. Add genuine value or perspective to the conversation
+3. Be specific to what was said - avoid generic responses like "great take" or "this is the way"
+4. Add genuine value, insight, or a thoughtful question to the conversation
 5. Match the energy and tone of the original post
-6. Keep it natural - don't be overly formal or stiff
-7. If disagreeing, be respectful but authentic
+6. Keep it natural - don't be overly formal or use crypto jargon just to sound smart
+7. If disagreeing, be respectful but authentic - showing you can think independently is valuable
 8. Vary sentence structure - don't be predictable
-9. It's okay to be brief if that fits better
+9. It's okay to be brief if that fits better - quality over length
 
 Generate ONLY the reply text - no quotes, no explanations, no preamble. Just the reply itself.
 Also provide a quality score (1-10) for how human and engaging the reply sounds.
@@ -3033,6 +3039,15 @@ Format your response as JSON:
             'char_count': len(reply_text)
         })
 
+    except anthropic.BadRequestError as e:
+        error_msg = str(e)
+        logger.error(f"Manual reply generation failed: {e}", exc_info=True)
+        if 'credit balance' in error_msg.lower() or 'billing' in error_msg.lower():
+            return jsonify({'error': 'API credits exhausted. Please contact the administrator to add Anthropic API credits.'}), 503
+        return jsonify({'error': 'Generation failed. Please try again.'}), 500
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic API error: {e}", exc_info=True)
+        return jsonify({'error': 'AI service temporarily unavailable. Please try again later.'}), 503
     except Exception as e:
         logger.error(f"Manual reply generation failed: {e}", exc_info=True)
         return jsonify({'error': 'Generation failed. Please try again.'}), 500
@@ -3065,19 +3080,23 @@ def api_generate_reply():
         # Generate reply using Claude
         client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
 
-        prompt = f"""You are a social media engagement expert. Generate a thoughtful, engaging reply to this {platform} post:
+        prompt = f"""You are a blockchain/web3 enthusiast networking in the crypto space. Generate a thoughtful, engaging reply to this {platform} post:
 
 "{post_content}"
 
+CONTEXT: You're building relationships in the blockchain/web3 industry. Your replies should position you as knowledgeable about cross-chain infrastructure, DeFi, and blockchain technology - someone worth connecting with.
+
 Requirements:
 - Maximum 280 characters for X/Twitter (shorter is better)
-- Professional yet friendly tone
-- Add value to the conversation
-- Avoid generic responses like "Great post!" or "Thanks for sharing"
-- Be authentic and specific
+- Sound like a real human, not an AI or marketing account
+- NO emojis whatsoever
+- Add genuine value, insight, or a thoughtful question
+- Avoid generic responses like "Great post!", "This is the way", or "Thanks for sharing"
+- Be authentic and specific to what was said
+- Build rapport that opens doors for future collaboration
 
 Also provide:
-1. Quality score (1-10) based on relevance, value-add, and engagement potential
+1. Quality score (1-10) based on how human it sounds and networking potential
 2. Brief reasoning for the score
 
 Format your response as JSON:
@@ -3112,8 +3131,17 @@ Format your response as JSON:
 
         return jsonify(reply_data), 200
 
+    except anthropic.BadRequestError as e:
+        error_msg = str(e)
+        logger.error(f"API generate reply failed: {e}", exc_info=True)
+        if 'credit balance' in error_msg.lower() or 'billing' in error_msg.lower():
+            return jsonify({'error': 'API credits exhausted. Please contact the administrator.'}), 503
+        return jsonify({'error': 'Failed to generate reply'}), 500
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic API error: {e}", exc_info=True)
+        return jsonify({'error': 'AI service temporarily unavailable.'}), 503
     except Exception as e:
-        print(f"AI generation error: {e}")
+        logger.error(f"AI generation error: {e}", exc_info=True)
         return jsonify({'error': 'Failed to generate reply'}), 500
 
 # ============================================
