@@ -71,3 +71,6 @@ htmlcov/
 scripts/start_reply_monitor.bat
 scripts/start_reply_monitor.vbs
 scripts/stop_reply_monitor.bat
+
+# Windows special device name artifacts
+nul
