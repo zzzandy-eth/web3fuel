@@ -66,3 +66,8 @@ npm-debug.log*
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Local Windows scripts (contain machine-specific paths)
+scripts/start_reply_monitor.bat
+scripts/start_reply_monitor.vbs
+scripts/stop_reply_monitor.bat
