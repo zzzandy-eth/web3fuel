@@ -18,6 +18,17 @@ cross_chain_tools = [
         "status": "live"
     },
     {
+        "title": "Chainlink Price Feeds",
+        "description": "Live cryptocurrency prices powered by Chainlink's decentralized oracle network. Displays real-time BTC, ETH, LINK, AVAX, and MATIC prices fetched directly from Chainlink smart contracts on Ethereum mainnet. Features auto-refresh every 30 seconds, on-chain update timestamps, and direct links to contract addresses on Etherscan.",
+        "why_valuable": "Access tamper-proof, decentralized price data directly from Chainlink oracles",
+        "technical_scope": "Web3.py integration, Chainlink AggregatorV3 contracts, Ethereum mainnet",
+        "hiring_impact": "Demonstrates Web3 development skills and smart contract interaction",
+        "tags": ["Price Feeds", "Chainlink", "DeFi Tools"],
+        "date": datetime(2024, 12, 30),
+        "slug": "crypto-prices",
+        "status": "live"
+    },
+    {
         "title": "Bridge Fee Comparison Tracker",
         "description": "Compare bridging costs across all major cross-chain protocols in real-time. Our tool aggregates fee data from Hop, Stargate, Across, and Wormhole to help you find the most cost-effective route for your transactions. Save up to 60% on bridge fees by choosing the optimal protocol and timing for your cross-chain transfers.",
         "why_valuable": "Save 30-60% on bridge fees with optimal route selection",
@@ -96,6 +107,10 @@ def tool(slug):
     # Reply Assistant has its own blueprint - redirect to it
     if slug == 'reply-assistant':
         return redirect(url_for('reply_assistant.index'))
+
+    # Crypto Prices has its own blueprint - redirect to it
+    if slug == 'crypto-prices':
+        return redirect(url_for('crypto_prices.index'))
 
     # Find the tool by slug
     tool_data = None

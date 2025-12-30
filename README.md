@@ -36,6 +36,7 @@ The platform serves as both a resource hub for cross-chain research and a toolki
 - **Protocol Documentation**: Comprehensive coverage of cross-chain infrastructure
 
 ### Cross-Chain Tools
+- **Chainlink Price Feeds**: Live cryptocurrency prices from Chainlink decentralized oracles
 - **Bridge Fee Comparison**: Real-time comparison of bridging costs across protocols
 - **Portfolio Dashboard**: Multi-chain portfolio tracking and analytics
 - **Gas Optimization**: Tools for efficient cross-chain transactions
@@ -145,7 +146,9 @@ web3fuel/
 │   └── routes/
 │       ├── __init__.py             # Blueprint registration
 │       ├── home.py                 # Homepage route
-│       ├── tools.py                # Cross-chain tools
+│       ├── tools.py                # Cross-chain tools index
+│       ├── crypto_prices.py        # Chainlink Price Feeds tool
+│       ├── reply_assistant.py      # AI Reply Assistant tool
 │       ├── research.py             # Research articles
 │       ├── blog.py                 # Blog integration
 │       └── contact.py              # Contact forms
@@ -176,6 +179,107 @@ web3fuel/
 - **`frontend/templates/`** - Jinja2 templates with embedded CSS/JS
 - **`backend/config.py`** - Environment-based configuration management
 - **Template Strategy** - Self-contained routes with embedded templates
+
+---
+
+## Chainlink Price Feeds Tool
+
+Live cryptocurrency prices powered by Chainlink's decentralized oracle network.
+
+**Live URL**: [web3fuel.io/tools/crypto-prices](https://web3fuel.io/tools/crypto-prices)
+
+### How It Works
+
+Chainlink Price Feeds are decentralized oracle networks that aggregate price data from multiple premium data sources. The prices are stored on-chain in smart contracts on Ethereum mainnet, ensuring tamper-proof and verifiable data.
+
+Our tool fetches prices directly from these smart contracts using the Web3.py library:
+
+```
+User Request → Flask API → Web3.py → Ethereum RPC → Chainlink Contract → Price Data
+```
+
+### Supported Price Feeds
+
+| Asset | Contract Address | Chainlink Page |
+|-------|------------------|----------------|
+| BTC/USD | `0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c` | [View](https://data.chain.link/feeds/ethereum/mainnet/btc-usd) |
+| ETH/USD | `0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419` | [View](https://data.chain.link/feeds/ethereum/mainnet/eth-usd) |
+| LINK/USD | `0x2c1d072e956AFFC0D435Cb7AC38EF18d24d9127c` | [View](https://data.chain.link/feeds/ethereum/mainnet/link-usd) |
+| AVAX/USD | `0xFF3EEb22B5E3dE6e705b44749C2559d704923FD7` | [View](https://data.chain.link/feeds/ethereum/mainnet/avax-usd) |
+| MATIC/USD | `0x7bAC85A8a13A4BcD8abb3eB7d6b4d632c5a57676` | [View](https://data.chain.link/feeds/ethereum/mainnet/matic-usd) |
+
+### Features
+
+- **Real-time Prices**: Fetched directly from Chainlink smart contracts
+- **Auto-refresh**: Updates every 30 seconds automatically
+- **Price Change Indicators**: Visual arrows and colors showing price movement
+- **30-second Caching**: Prevents excessive RPC calls while maintaining freshness
+- **On-chain Timestamps**: Shows when each price was last updated on-chain
+- **Contract Links**: Direct links to Etherscan and Chainlink data pages
+- **Mobile Responsive**: Optimized for all device sizes
+
+### Configuration
+
+Add your Ethereum RPC endpoint to `.env`:
+
+```bash
+# Using Alchemy (recommended)
+ETHEREUM_RPC_URL=https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY
+
+# Or Infura
+ETHEREUM_RPC_URL=https://mainnet.infura.io/v3/YOUR_PROJECT_ID
+```
+
+If no RPC is configured, the tool falls back to public RPC endpoints (LlamaRPC, PublicNode, etc.).
+
+### Testing Locally
+
+```bash
+# Activate virtual environment
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+
+# Run Flask development server
+python run.py
+
+# Open in browser
+# http://localhost:5000/tools/crypto-prices
+```
+
+### API Endpoint
+
+```
+GET /tools/crypto-prices/api/prices
+```
+
+Returns JSON with all price data:
+```json
+{
+  "success": true,
+  "cached": false,
+  "fetchedAt": "2025-12-30 16:30:00 UTC",
+  "prices": [
+    {
+      "pair": "BTC/USD",
+      "price": 88532.0781,
+      "decimals": 8,
+      "updatedAt": 1735574447,
+      "updatedAtFormatted": "2025-12-30 15:50:47 UTC",
+      "address": "0xF4030086522a5bEEa4988F8cA5B36dbC97BeE88c",
+      "priceChange": 0,
+      "priceChangePercent": 0,
+      "success": true
+    }
+  ]
+}
+```
+
+### Technical Details
+
+- **Backend**: Flask blueprint at `backend/routes/crypto_prices.py`
+- **Web3 Library**: web3.py >= 6.0.0
+- **ABI**: Chainlink AggregatorV3Interface (latestRoundData, decimals)
+- **Decimals**: All USD pairs use 8 decimals (divide by 10^8)
+- **Caching**: Thread-safe in-memory cache with 30-second TTL
 
 ---
 
