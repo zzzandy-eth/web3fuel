@@ -1,0 +1,69 @@
+<!-- BACKUP: Original Cube Hero Design -->
+<!-- To restore: Replace the hero-visual div in index.html with this content -->
+<!-- And restore the cube rotation script in the scripts block -->
+
+<!-- Hero Visual HTML -->
+<div class="hero-visual">
+    <div class="cube">
+        <div class="cube-face face-front">ETH</div>
+        <div class="cube-face face-back">AVAX</div>
+        <div class="cube-face face-right">MATIC</div>
+        <div class="cube-face face-left">ARB</div>
+        <div class="cube-face face-top">OP</div>
+        <div class="cube-face face-bottom">BASE</div>
+    </div>
+</div>
+
+<!-- Cube Rotation Script (add to {% block scripts %}) -->
+<script>
+    // Cube rotation interaction
+    document.addEventListener('DOMContentLoaded', function() {
+        const cube = document.querySelector('.cube');
+        const heroSection = document.querySelector('.hero');
+
+        if (cube && heroSection) {
+            let rotateX = 0;
+            let rotateY = 0;
+            let isAutoRotating = true;
+            let autoRotateInterval;
+
+            function startAutoRotate() {
+                isAutoRotating = true;
+                autoRotateInterval = setInterval(() => {
+                    rotateX += 0.3;
+                    rotateY += 0.3;
+                    updateCubeRotation();
+                }, 50);
+            }
+
+            function stopAutoRotate() {
+                isAutoRotating = false;
+                clearInterval(autoRotateInterval);
+            }
+
+            function updateCubeRotation() {
+                cube.style.transform = 'rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg)';
+            }
+
+            heroSection.addEventListener('mousemove', function(e) {
+                if (isAutoRotating) {
+                    stopAutoRotate();
+                }
+
+                const xAxis = (window.innerWidth / 2 - e.pageX) / 25;
+                const yAxis = (window.innerHeight / 2 - e.pageY) / 25;
+
+                rotateX = yAxis;
+                rotateY = -xAxis;
+
+                updateCubeRotation();
+            });
+
+            heroSection.addEventListener('mouseleave', function() {
+                startAutoRotate();
+            });
+
+            startAutoRotate();
+        }
+    });
+</script>

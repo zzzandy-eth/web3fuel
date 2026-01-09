@@ -3,33 +3,24 @@
 {% block content %}
 <!-- Hero Section -->
 <section class="hero">
+    <div class="hero-bg">
+        <img src="{{ url_for('static', filename='images/creation-of-blockchain.jpg') }}" alt="" class="hero-bg-base">
+        <img src="{{ url_for('static', filename='images/creation-of-blockchain.jpg') }}" alt="" class="hero-bg-bright">
+    </div>
     <div class="container">
-        <div class="hero-grid">
-            <div>
-                <h1>Building the Future of <span class="hero-accent">Cross-Chain</span><br>Infrastructure.</h1>
-                <p class="hero-subtitle">Deep research, practical tools, and insights for the multi-chain world. Building cross-chain infrastructure solutions, one bridge at a time.</p>
-            </div>
-            
-            <div class="hero-visual">
-                <div class="cube">
-                    <div class="cube-face face-front">ETH</div>
-                    <div class="cube-face face-back">AVAX</div>
-                    <div class="cube-face face-right">MATIC</div>
-                    <div class="cube-face face-left">ARB</div>
-                    <div class="cube-face face-top">OP</div>
-                    <div class="cube-face face-bottom">BASE</div>
-                </div>
-            </div>
+        <div class="hero-centered">
+            <h1>Advancing Blockchain<br>Infrastructure &<br>Smart Contract <span class="hero-accent">Security</span></h1>
+            <p class="hero-subtitle">Fueling Web3 development through protocol security and cross-chain interoperability.<br>Breaking down complex systems and building tools for the multi-chain ecosystem.</p>
         </div>
-        
+
         <!-- Hero stats spanning full width -->
         <div class="hero-stats">
             <div class="stat-card">
                 <div class="stat-value">15+</div>
-                <div class="stat-label">Bridges Analyzed</div>
+                <div class="stat-label">Protocols Analyzed</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">$2.8B</div>
+                <div class="stat-value">$2.8B+</div>
                 <div class="stat-label">Bridge Hacks Studied</div>
             </div>
             <div class="stat-card">
@@ -261,54 +252,25 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    // Cube rotation interaction
     document.addEventListener('DOMContentLoaded', function() {
-        const cube = document.querySelector('.cube');
-        const heroSection = document.querySelector('.hero');
-        
-        if (cube && heroSection) {
-            let rotateX = 0;
-            let rotateY = 0;
-            let isAutoRotating = true;
-            let autoRotateInterval;
-            
-            function startAutoRotate() {
-                isAutoRotating = true;
-                autoRotateInterval = setInterval(() => {
-                    rotateX += 0.3;
-                    rotateY += 0.3;
-                    updateCubeRotation();
-                }, 50);
-            }
-            
-            function stopAutoRotate() {
-                isAutoRotating = false;
-                clearInterval(autoRotateInterval);
-            }
-            
-            function updateCubeRotation() {
-                cube.style.transform = 'rotateX(' + rotateX + 'deg) rotateY(' + rotateY + 'deg)';
-            }
-            
-            heroSection.addEventListener('mousemove', function(e) {
-                if (isAutoRotating) {
-                    stopAutoRotate();
-                }
-                
-                const xAxis = (window.innerWidth / 2 - e.pageX) / 25;
-                const yAxis = (window.innerHeight / 2 - e.pageY) / 25;
-                
-                rotateX = yAxis;
-                rotateY = -xAxis;
-                
-                updateCubeRotation();
+        // Hero spotlight effect
+        const hero = document.querySelector('.hero');
+        const heroBgBright = document.querySelector('.hero-bg-bright');
+
+        if (hero && heroBgBright) {
+            hero.addEventListener('mousemove', (e) => {
+                const rect = hero.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                heroBgBright.style.setProperty('--spotlight-x', `${x}px`);
+                heroBgBright.style.setProperty('--spotlight-y', `${y}px`);
             });
-            
-            heroSection.addEventListener('mouseleave', function() {
-                startAutoRotate();
+
+            hero.addEventListener('mouseleave', () => {
+                heroBgBright.style.setProperty('--spotlight-x', '-200px');
+                heroBgBright.style.setProperty('--spotlight-y', '-200px');
             });
-            
-            startAutoRotate();
         }
 
         // Set minimum date to today for datetime picker

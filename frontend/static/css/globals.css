@@ -220,10 +220,12 @@ header {
 .hero {
     position: relative;
     overflow: hidden;
-    padding: 5rem 0;
-    border-bottom: 1px solid var(--border-color);
-    min-height: 80vh;
+    padding: 0;
+    min-height: 100vh;
+    min-height: 100dvh; /* Dynamic viewport height - accounts for mobile browser UI */
     display: flex;
+    flex-direction: column;
+    justify-content: center;
     align-items: center;
 }
 
@@ -238,47 +240,128 @@ header {
     text-align: left;
 }
 
+/* Centered hero layout */
+.hero-centered {
+    text-align: center;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding-top: 2.5rem;
+    padding-bottom: 12rem; /* Space for stats at bottom */
+}
+
+.hero-centered .hero-subtitle {
+    max-width: 1300px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 0 2rem;
+}
+
+/* Hero background image */
+.hero-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+}
+
+.hero-bg img {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 60%;
+}
+
+/* Base darker image */
+.hero-bg-base {
+    opacity: 0.25;
+    filter: grayscale(0.4) brightness(0.6);
+    mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,1) 5%, rgba(0,0,0,1) 90%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,1) 5%, rgba(0,0,0,1) 90%, transparent 100%);
+}
+
+/* Bright image revealed by spotlight */
+.hero-bg-bright {
+    opacity: 0.8;
+    filter: grayscale(0.1) brightness(1.1);
+    mask-image: radial-gradient(
+        circle 150px at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
+        rgba(0,0,0,1) 0%,
+        rgba(0,0,0,0.5) 50%,
+        transparent 100%
+    );
+    -webkit-mask-image: radial-gradient(
+        circle 150px at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
+        rgba(0,0,0,1) 0%,
+        rgba(0,0,0,0.5) 50%,
+        transparent 100%
+    );
+    transition: mask-image 0.05s ease, -webkit-mask-image 0.05s ease;
+}
+
+.hero .container {
+    position: relative;
+    z-index: 1;
+}
+
 .hero h1 {
-    font-size: 2.5rem;
-    font-weight: 700;
-    margin-bottom: 2.0rem;
-    line-height: 1.2;
+    font-size: calc(3.5rem + 28px);
+    font-weight: 650;
+    margin-bottom: 4rem;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
 }
 
 .hero-accent {
     color: var(--primary);
-    text-shadow: 0 0 10px var(--primary);
+    text-shadow: 0 0 30px var(--primary);
     animation: glitch 2s infinite, glitch-text 2s infinite;
     position: relative;
     display: inline-block;
 }
 
+.hero-accent-large {
+    font-size: 1.4em;
+}
+
 /* Updated hero subtitle */
 .hero-subtitle {
-    color: #e2e8f0;
-    font-size: 1.55rem;
+    color: #b8c5d6;
+    font-size: calc(1.35rem + 3px);
     margin-bottom: 2rem;
-    max-width: 32rem;
-    line-height: 1.6;
+    max-width: 1050px;
+    line-height: 1.7;
+    font-weight: 400;
 }
 
 /* Homepage2 style hero stats */
 .hero-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 1rem;
-    margin-top: 4.5rem;
-    margin-bottom: 0.1rem;
+    grid-template-columns: repeat(3, minmax(150px, 280px));
+    justify-content: center;
+    gap: 1.5rem;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 1000px;
+    padding: 0 2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    z-index: 2;
 }
 
 .stat-card {
     background: rgba(0, 0, 0, 0.6);
     border: 2px solid var(--border-color);
-    border-radius: 1rem;
-    padding: 1rem;
+    border-radius: 0.95rem;
+    padding: 0.95rem;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    text-align: center;
+    transform: scale(0.95);
 }
 
 .stat-card::before {
@@ -293,13 +376,13 @@ header {
 
 .stat-card:hover {
     border-color: var(--primary);
-    transform: translateY(-5px);
+    transform: scale(0.95) translateY(-5px);
     box-shadow: 0 10px 30px rgba(0, 255, 234, 0.2);
 }
 
 .stat-value {
     font-size: 1.9rem !important;
-    font-weight: 900 !important;
+    font-weight: 700 !important;
     color: var(--primary);
     margin-bottom: 0.3rem;
     text-shadow: 0 0 20px var(--primary);
@@ -317,13 +400,20 @@ header {
     position: relative;
     width: 100%;
     height: 350px;
-    perspective: 1000px;
     display: flex;
     justify-content: center;
     align-items: center;
     margin: 0 auto;
 }
 
+/* Network Graph Canvas */
+#networkGraph {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* BACKUP: Cube styles (uncomment to restore cube design)
 .cube {
     width: 250px;
     height: 250px;
@@ -352,6 +442,7 @@ header {
 .face-left { transform: rotateY(-90deg) translateZ(125px); }
 .face-top { transform: rotateX(90deg) translateZ(125px); }
 .face-bottom { transform: rotateX(-90deg) translateZ(125px); }
+*/
 
 /* Services Section - Using Homepage2 Style */
 .services-section {
@@ -1257,9 +1348,9 @@ select.form-input option:hover {
     }
     
     .hero h1 {
-        font-size: 3.5rem;
+        font-size: 4rem;
     }
-    
+
     .hero-grid {
         grid-template-columns: 1fr 1fr;
         align-items: center;
@@ -1401,25 +1492,62 @@ select.form-input option:hover {
         padding: 0 1rem;
     }
     
+    .hero {
+        min-height: auto;
+        padding: 6rem 0 4rem;
+    }
+
+    .hero-centered {
+        padding-bottom: 0;
+    }
+
     .hero h1 {
-        font-size: 2rem;
-        line-height: 1.1;
+        font-size: 2.5rem;
+        line-height: 1.15;
     }
-    
+
     .hero-subtitle {
-        font-size: 1.2rem;
+        font-size: 1rem;
+        max-width: 100%;
+        padding: 0 1.25rem;
+        box-sizing: border-box;
     }
-    
+
     .hero-grid {
         grid-template-columns: 1fr;
         gap: 2rem;
         text-align: center;
     }
-    
+
     .hero-grid > div:first-child {
         text-align: center;
     }
-    
+
+    .hero-stats {
+        position: relative;
+        bottom: auto;
+        left: auto;
+        transform: none;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.5rem;
+        margin-top: 3rem;
+        padding: 0 0.75rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .stat-card {
+        transform: scale(0.85);
+        padding: 0.6rem;
+    }
+
+    .stat-value {
+        font-size: 1.2rem !important;
+    }
+
+    .stat-label {
+        font-size: 0.7rem;
+    }
+
     /* Cube hidden on mobile, removing redundant styles */
     
     .services-title,
