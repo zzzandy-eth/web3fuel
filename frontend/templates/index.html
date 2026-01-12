@@ -33,64 +33,33 @@
     </div>
 </section>
 
-<!-- Services Section - Homepage2 Style -->
+<!-- Latest Protocol Analysis Section -->
 <section class="services-section">
     <div class="container">
-        <h2 class="services-title">Research & Infrastructure Tools</h2>
-        
-        <div class="products-grid">
-            <!-- Cross-Chain Tools -->
-            <div class="product-card cross-chain-tools">
-                <div class="product-header">
-                    <span class="product-icon">🛠️</span>
-                    <h3 class="product-title">Cross-Chain Tools</h3>
-                </div>
-                <p class="product-description">Practical tools for navigating the multi-chain world. Bridge comparisons, portfolio tracking, and analytics built for the cross-chain economy.</p>
-                
-                <ul class="product-features">
-                    <li>Bridge fee comparison tracker</li>
-                    <li>Cross-chain portfolio dashboard</li>
-                    <li>Transaction status monitoring</li>
-                    <li>Multi-chain gas price alerts</li>
-                </ul>
-                
-                <div style="text-align: center;">
-                    <a href="/tools" class="product-cta">
-                        Try the Tools →
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Cross-Chain Research -->
-            <div class="product-card research-insights">
-                <div class="product-header">
-                    <span class="product-icon">🔗</span>
-                    <h3 class="product-title">Cross-Chain Research</h3>
-                </div>
-                <p class="product-description">In-depth analysis of bridge security, cross-chain protocols, and multi-chain infrastructure. Academic-quality research for the practitioner community.</p>
-                
-                <ul class="product-features">
-                    <li>Bridge security audits & comparisons</li>
-                    <li>Protocol architecture deep-dives</li>
-                    <li>Cross-chain MEV analysis</li>
-                    <li>Infrastructure trend reports</li>
-                </ul>
-                
-                <div style="text-align: center;">
-                    <a href="/research" class="product-cta">
-                        Explore Research →
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="cross-chain-cta-section">
-            <h3 class="cross-chain-cta-title">Building Cross-Chain Infrastructure, In Public</h3>
-            <p class="cross-chain-cta-description">
-                From blockchain development to cross-chain expertise, <br>documenting every lesson learned along the way.
-            </p>
-            <a href="/blog" class="cross-chain-cta-button">
-                Follow the Journey →
+        <h2 class="latest-analysis-title">Latest Protocol Analysis</h2>
+        <p class="latest-analysis-subtitle">Analysis on bridge security, multi-chain protocols, and cross-chain infrastructure development.</p>
+
+        <div class="blog-cards-grid">
+            {% for post in recent_posts %}
+            <a href="{{ post.link }}" target="_blank" rel="noopener noreferrer" class="blog-card-link">
+                <article class="blog-card">
+                    <h3 class="blog-card-title">{{ post.title }}</h3>
+                    <p class="blog-card-excerpt">{{ post.excerpt }}</p>
+                    <div class="blog-card-meta">
+                        <span class="blog-card-category">
+                            {% if post.categories %}{{ post.categories[0].name }}{% else %}Research{% endif %}
+                        </span>
+                        <span class="blog-card-readtime">🕐 {{ post.reading_time }} min read</span>
+                    </div>
+                </article>
             </a>
+            {% else %}
+            <p class="no-posts-message">No articles available at this time.</p>
+            {% endfor %}
+        </div>
+
+        <div class="view-all-research">
+            <a href="/blog" class="view-all-btn">View All Research</a>
         </div>
     </div>
 </section>
