@@ -462,8 +462,15 @@ header {
 
 /* Services Section - Using Homepage2 Style */
 .services-section {
-    padding: 0 0 6rem 0;
+    padding: 6rem 0;
+    border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
+}
+
+@media (min-width: 1025px) {
+    .services-section {
+        margin-top: -20px;
+    }
 }
 
 .services-header {
@@ -474,7 +481,7 @@ header {
 .services-title {
     font-size: 2.8rem;
     font-weight: 700;
-    margin-bottom: 1.5rem;
+    margin-bottom: calc(1.5rem + 30px);
     text-align: center;
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     -webkit-background-clip: text;
@@ -497,7 +504,7 @@ header {
     display: grid;
     grid-template-columns: 1fr;
     gap: 3rem;
-    margin-top: 3rem;
+    margin-top: calc(3rem + 30px);
 }
 
 .product-card {
@@ -632,7 +639,7 @@ header {
     font-size: 2.8rem;
     font-weight: 700;
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: calc(1.5rem + 30px);
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
