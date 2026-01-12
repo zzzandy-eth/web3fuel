@@ -46,6 +46,24 @@ canvas {
     opacity: 0.3;
 }
 
+/* Global Spotlight Effect */
+.global-spotlight {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    background: radial-gradient(
+        circle 250px at var(--mouse-x, -200px) var(--mouse-y, -200px),
+        rgba(0, 255, 234, 0.15) 0%,
+        rgba(0, 255, 234, 0.05) 50%,
+        transparent 100%
+    );
+    transition: opacity 0.3s ease;
+}
+
 .container {
     max-width: 70%;
     margin: 0 auto;
@@ -282,21 +300,22 @@ header {
 
 /* Bright image revealed by spotlight */
 .hero-bg-bright {
+    --spotlight-size: 150px;
     opacity: 0.8;
     filter: grayscale(0.1) brightness(1.1);
     mask-image: radial-gradient(
-        circle 150px at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
+        circle var(--spotlight-size) at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
         rgba(0,0,0,1) 0%,
         rgba(0,0,0,0.5) 50%,
         transparent 100%
     );
     -webkit-mask-image: radial-gradient(
-        circle 150px at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
+        circle var(--spotlight-size) at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
         rgba(0,0,0,1) 0%,
         rgba(0,0,0,0.5) 50%,
         transparent 100%
     );
-    transition: mask-image 0.05s ease, -webkit-mask-image 0.05s ease;
+    transition: mask-image 0.15s ease, -webkit-mask-image 0.15s ease;
 }
 
 .hero .container {
@@ -347,8 +366,6 @@ header {
     width: 100%;
     max-width: 1000px;
     padding: 0 2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
     z-index: 2;
 }
 
@@ -446,7 +463,7 @@ header {
 
 /* Services Section - Using Homepage2 Style */
 .services-section {
-    padding: 6rem 0;
+    padding: 0 0 6rem 0;
     border-bottom: 1px solid var(--border-color);
 }
 

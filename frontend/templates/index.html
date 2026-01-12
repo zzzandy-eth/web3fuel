@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
 {% block content %}
+<div class="global-spotlight"></div>
+
 <!-- Hero Section -->
 <section class="hero">
     <div class="hero-bg">
@@ -253,15 +255,62 @@
 {{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Hero spotlight effect
+        // Global Spotlight Effect (homepage only - hidden in hero section)
+        const spotlight = document.querySelector('.global-spotlight');
+        const heroSection = document.querySelector('.hero');
+
+        if (spotlight) {
+            document.addEventListener('mousemove', (e) => {
+                // Check if cursor is inside hero section
+                if (heroSection) {
+                    const heroRect = heroSection.getBoundingClientRect();
+                    const isInHero = e.clientY >= heroRect.top && e.clientY <= heroRect.bottom;
+
+                    if (isInHero) {
+                        // Hide spotlight in hero (hero has its own effect)
+                        spotlight.style.opacity = '0';
+                    } else {
+                        spotlight.style.opacity = '1';
+                        spotlight.style.setProperty('--mouse-x', `${e.clientX}px`);
+                        spotlight.style.setProperty('--mouse-y', `${e.clientY}px`);
+                    }
+                } else {
+                    spotlight.style.setProperty('--mouse-x', `${e.clientX}px`);
+                    spotlight.style.setProperty('--mouse-y', `${e.clientY}px`);
+                }
+            });
+
+            document.addEventListener('mouseleave', () => {
+                spotlight.style.setProperty('--mouse-x', '-200px');
+                spotlight.style.setProperty('--mouse-y', '-200px');
+            });
+        }
+
+        // Hero spotlight effect (gradual decrease near stat cards)
         const hero = document.querySelector('.hero');
         const heroBgBright = document.querySelector('.hero-bg-bright');
+        const heroStats = document.querySelector('.hero-stats');
+        const defaultSpotlightSize = 150; // matches CSS
 
         if (hero && heroBgBright) {
             hero.addEventListener('mousemove', (e) => {
                 const rect = hero.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
+
+                if (heroStats) {
+                    const statsRect = heroStats.getBoundingClientRect();
+
+                    // Disable spotlight 5px below stat cards
+                    if (e.clientY > statsRect.bottom + 5) {
+                        heroBgBright.style.setProperty('--spotlight-x', '-200px');
+                        heroBgBright.style.setProperty('--spotlight-y', '-200px');
+                        return;
+                    }
+
+                    // Keep full spotlight size
+                    heroBgBright.style.setProperty('--spotlight-size', `${defaultSpotlightSize}px`);
+                }
 
                 heroBgBright.style.setProperty('--spotlight-x', `${x}px`);
                 heroBgBright.style.setProperty('--spotlight-y', `${y}px`);
@@ -270,6 +319,7 @@
             hero.addEventListener('mouseleave', () => {
                 heroBgBright.style.setProperty('--spotlight-x', '-200px');
                 heroBgBright.style.setProperty('--spotlight-y', '-200px');
+                heroBgBright.style.setProperty('--spotlight-size', `${defaultSpotlightSize}px`);
             });
         }
 
