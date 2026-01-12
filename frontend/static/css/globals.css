@@ -300,22 +300,21 @@ header {
 
 /* Bright image revealed by spotlight */
 .hero-bg-bright {
-    --spotlight-size: 150px;
     opacity: 0.8;
     filter: grayscale(0.1) brightness(1.1);
     mask-image: radial-gradient(
-        circle var(--spotlight-size) at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
+        circle 150px at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
         rgba(0,0,0,1) 0%,
         rgba(0,0,0,0.5) 50%,
         transparent 100%
     );
     -webkit-mask-image: radial-gradient(
-        circle var(--spotlight-size) at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
+        circle 150px at var(--spotlight-x, -200px) var(--spotlight-y, -200px),
         rgba(0,0,0,1) 0%,
         rgba(0,0,0,0.5) 50%,
         transparent 100%
     );
-    transition: mask-image 0.15s ease, -webkit-mask-image 0.15s ease;
+    transition: mask-image 0.05s ease, -webkit-mask-image 0.05s ease;
 }
 
 .hero .container {

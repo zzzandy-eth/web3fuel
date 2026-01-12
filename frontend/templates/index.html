@@ -286,31 +286,26 @@
             });
         }
 
-        // Hero spotlight effect (gradual decrease near stat cards)
+        // Hero spotlight effect (disabled below stat cards)
         const hero = document.querySelector('.hero');
         const heroBgBright = document.querySelector('.hero-bg-bright');
         const heroStats = document.querySelector('.hero-stats');
-        const defaultSpotlightSize = 150; // matches CSS
 
         if (hero && heroBgBright) {
             hero.addEventListener('mousemove', (e) => {
-                const rect = hero.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
+                // Disable spotlight 5px below stat cards
                 if (heroStats) {
                     const statsRect = heroStats.getBoundingClientRect();
-
-                    // Disable spotlight 5px below stat cards
                     if (e.clientY > statsRect.bottom + 5) {
                         heroBgBright.style.setProperty('--spotlight-x', '-200px');
                         heroBgBright.style.setProperty('--spotlight-y', '-200px');
                         return;
                     }
-
-                    // Keep full spotlight size
-                    heroBgBright.style.setProperty('--spotlight-size', `${defaultSpotlightSize}px`);
                 }
+
+                const rect = hero.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
 
                 heroBgBright.style.setProperty('--spotlight-x', `${x}px`);
                 heroBgBright.style.setProperty('--spotlight-y', `${y}px`);
@@ -319,7 +314,6 @@
             hero.addEventListener('mouseleave', () => {
                 heroBgBright.style.setProperty('--spotlight-x', '-200px');
                 heroBgBright.style.setProperty('--spotlight-y', '-200px');
-                heroBgBright.style.setProperty('--spotlight-size', `${defaultSpotlightSize}px`);
             });
         }
 
