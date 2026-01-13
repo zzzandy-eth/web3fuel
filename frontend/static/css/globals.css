@@ -462,7 +462,7 @@ header {
 
 /* Services Section - Using Homepage2 Style */
 .services-section {
-    padding: 6rem 0;
+    padding: 5rem 0;
     border-top: 1px solid var(--border-color);
     border-bottom: 1px solid var(--border-color);
 }
@@ -504,7 +504,7 @@ header {
 .latest-analysis-title {
     font-size: 2.8rem;
     font-weight: 700;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     text-align: center;
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     -webkit-background-clip: text;
@@ -515,16 +515,20 @@ header {
 .latest-analysis-subtitle {
     font-size: 1.2rem;
     color: var(--text);
-    margin-bottom: calc(1.5rem + 30px);
+    margin-bottom: 3rem;
     line-height: 1.6;
     text-align: center;
+}
+
+.blog-section-wrapper {
+    position: relative;
+    margin-bottom: 1rem;
 }
 
 .blog-cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
-    margin-bottom: 3rem;
 }
 
 .blog-card-link {
@@ -553,13 +557,9 @@ header {
 .blog-card-title {
     font-size: 1.3rem;
     font-weight: 600;
-    color: var(--text);
+    color: var(--primary);
     margin-bottom: 0.75rem;
     line-height: 1.3;
-}
-
-.blog-card:hover .blog-card-title {
-    color: var(--primary);
 }
 
 .blog-card-excerpt {
@@ -593,28 +593,45 @@ header {
     color: var(--text-muted);
 }
 
-.view-all-research {
-    text-align: left;
-    margin-top: 2rem;
-}
-
 .view-all-btn {
-    display: inline-block;
-    padding: 0.75rem 1.5rem;
-    background: rgba(0, 255, 234, 0.1);
-    border: 1px solid var(--primary);
-    color: var(--primary);
-    font-size: 0.95rem;
-    font-weight: 600;
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateX(100%) translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 1.25rem;
+    background: rgba(255, 0, 255, 0.1);
+    border: 2px solid var(--secondary);
+    color: var(--secondary);
+    font-size: 1.1rem;
+    font-weight: 700;
     border-radius: 8px;
     text-decoration: none;
     transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.view-all-btn .btn-default {
+    display: inline;
+}
+
+.view-all-btn .btn-hover {
+    display: none;
 }
 
 .view-all-btn:hover {
-    background: var(--primary);
-    color: var(--background);
-    box-shadow: 0 0 20px rgba(0, 255, 234, 0.4);
+    background: rgba(255, 0, 255, 0.2);
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
+}
+
+.view-all-btn:hover .btn-default {
+    display: none;
+}
+
+.view-all-btn:hover .btn-hover {
+    display: inline;
 }
 
 .no-posts-message {
@@ -624,19 +641,59 @@ header {
     padding: 3rem;
 }
 
-@media (max-width: 1024px) {
-    .blog-cards-grid {
-        grid-template-columns: repeat(2, 1fr);
+@media (max-width: 1650px) {
+    .view-all-btn {
+        position: static;
+        transform: none;
+        width: 100%;
+        margin-top: 1.5rem;
+    }
+
+    .view-all-btn .btn-default {
+        display: none;
+    }
+
+    .view-all-btn .btn-hover {
+        display: inline;
+    }
+
+    .blog-card-meta {
+        gap: 0.5rem;
+    }
+
+    .blog-card-category {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+    }
+
+    .blog-card-readtime {
+        font-size: 0.75rem;
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1250px) {
     .blog-cards-grid {
         grid-template-columns: 1fr;
     }
 
+    .blog-card-meta {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 768px) {
     .latest-analysis-title {
         font-size: 2rem;
+    }
+
+    .blog-card-category {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.6rem;
+    }
+
+    .blog-card-readtime {
+        font-size: 0.8rem;
     }
 }
 

@@ -36,30 +36,33 @@
 <!-- Latest Protocol Analysis Section -->
 <section class="services-section">
     <div class="container">
-        <h2 class="latest-analysis-title">Latest Protocol Analysis</h2>
-        <p class="latest-analysis-subtitle">Analysis on bridge security, multi-chain protocols, and cross-chain infrastructure development.</p>
+        <h2 class="latest-analysis-title">Latest Research & Tutorials</h2>
+        <p class="latest-analysis-subtitle">Deep dives into bridge security, multi-chain protocols, and cross-chain infrastructure development.</p>
 
-        <div class="blog-cards-grid">
-            {% for post in recent_posts %}
-            <a href="{{ post.link }}" target="_blank" rel="noopener noreferrer" class="blog-card-link">
-                <article class="blog-card">
-                    <h3 class="blog-card-title">{{ post.title }}</h3>
-                    <p class="blog-card-excerpt">{{ post.excerpt }}</p>
-                    <div class="blog-card-meta">
-                        <span class="blog-card-category">
-                            {% if post.categories %}{{ post.categories[0].name }}{% else %}Research{% endif %}
-                        </span>
-                        <span class="blog-card-readtime">🕐 {{ post.reading_time }} min read</span>
-                    </div>
-                </article>
+        <div class="blog-section-wrapper">
+            <div class="blog-cards-grid">
+                {% for post in recent_posts %}
+                <a href="{{ post.link }}" target="_blank" rel="noopener noreferrer" class="blog-card-link">
+                    <article class="blog-card">
+                        <h3 class="blog-card-title">{{ post.title }}</h3>
+                        <p class="blog-card-excerpt">{{ post.excerpt }}</p>
+                        <div class="blog-card-meta">
+                            <span class="blog-card-category">
+                                {% if post.categories %}{{ post.categories[0].name }}{% else %}Research{% endif %}
+                            </span>
+                            <span class="blog-card-readtime">🕐 {{ post.reading_time }} min read</span>
+                        </div>
+                    </article>
+                </a>
+                {% else %}
+                <p class="no-posts-message">No articles available at this time.</p>
+                {% endfor %}
+            </div>
+
+            <a href="/blog" class="view-all-btn">
+                <span class="btn-default">>></span>
+                <span class="btn-hover">View All Research</span>
             </a>
-            {% else %}
-            <p class="no-posts-message">No articles available at this time.</p>
-            {% endfor %}
-        </div>
-
-        <div class="view-all-research">
-            <a href="/blog" class="view-all-btn">View All Research</a>
         </div>
     </div>
 </section>

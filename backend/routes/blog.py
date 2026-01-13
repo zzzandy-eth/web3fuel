@@ -189,7 +189,7 @@ def process_post_data(post):
                         if 'source_url' in media:
                             featured_image = media['source_url']
                             featured_image_sizes['full'] = media['source_url']
-                            print(f"✓ Found source_url: {featured_image}")
+                            print(f"[OK] Found source_url: {featured_image}")
                         
                         # Extract all available sizes for responsive images
                         if 'media_details' in media and 'sizes' in media['media_details']:
@@ -200,7 +200,7 @@ def process_post_data(post):
                             for size_name, size_data in sizes.items():
                                 if 'source_url' in size_data:
                                     featured_image_sizes[size_name] = size_data['source_url']
-                                    print(f"✓ Found size {size_name}: {size_data['source_url']}")
+                                    print(f"[OK] Found size {size_name}: {size_data['source_url']}")
                             
                             # If no source_url was found, try to get the best available size
                             if not featured_image:
@@ -208,14 +208,14 @@ def process_post_data(post):
                                 for size_name in ['large', 'medium_large', 'medium', 'full', 'thumbnail']:
                                     if size_name in sizes and 'source_url' in sizes[size_name]:
                                         featured_image = sizes[size_name]['source_url']
-                                        print(f"✓ Found image via sizes[{size_name}]: {featured_image}")
+                                        print(f"[OK] Found image via sizes[{size_name}]: {featured_image}")
                                         break
                         
                         # Fallback to guid if available
                         if not featured_image and 'guid' in media and 'rendered' in media['guid']:
                             featured_image = media['guid']['rendered']
                             featured_image_sizes['guid'] = media['guid']['rendered']
-                            print(f"✓ Found image via guid: {featured_image}")
+                            print(f"[OK] Found image via guid: {featured_image}")
                             
                 except Exception as e:
                     print(f"Error processing _embedded media: {e}")
@@ -240,7 +240,7 @@ def process_post_data(post):
                     if 'source_url' in media_data:
                         featured_image = media_data['source_url']
                         featured_image_sizes['full'] = media_data['source_url']
-                        print(f"✓ Found via direct API source_url: {featured_image}")
+                        print(f"[OK] Found via direct API source_url: {featured_image}")
                     
                     if 'media_details' in media_data and 'sizes' in media_data['media_details']:
                         sizes = media_data['media_details']['sizes']
@@ -253,7 +253,7 @@ def process_post_data(post):
                             for size_name in ['large', 'medium_large', 'medium', 'full']:
                                 if size_name in sizes and 'source_url' in sizes[size_name]:
                                     featured_image = sizes[size_name]['source_url']
-                                    print(f"✓ Found via direct API sizes[{size_name}]: {featured_image}")
+                                    print(f"[OK] Found via direct API sizes[{size_name}]: {featured_image}")
                                     break
                 else:
                     print(f"Direct API call failed: {media_response.status_code}")
@@ -268,9 +268,9 @@ def process_post_data(post):
                 featured_image = 'https:' + featured_image
             elif featured_image.startswith('/'):
                 featured_image = WORDPRESS_SITE_URL + featured_image
-            print(f"✓ FINAL FEATURED IMAGE: {featured_image}")
+            print(f"[OK] FINAL FEATURED IMAGE: {featured_image}")
         else:
-            print("✗ NO FEATURED IMAGE FOUND")
+            print("[ERR] NO FEATURED IMAGE FOUND")
         
         # Clean up all image URLs in sizes dict
         for size_name in featured_image_sizes:
@@ -363,11 +363,11 @@ def process_post_data(post):
             'word_count': word_count
         }
         
-        print(f"✓ Processed post successfully")
+        print(f"[OK] Processed post successfully")
         return result
     
     except Exception as e:
-        print(f"✗ Error processing post: {e}")
+        print(f"[ERR] Error processing post: {e}")
         import traceback
         traceback.print_exc()
         return None
