@@ -59,7 +59,7 @@
                 {% endfor %}
             </div>
 
-            <a href="/blog" class="view-all-btn">
+            <a href="/blog" target="_blank" rel="noopener noreferrer" class="view-all-btn">
                 <span class="btn-default">>></span>
                 <span class="btn-hover">View All Research</span>
             </a>
@@ -67,105 +67,95 @@
     </div>
 </section>
 
-<!-- Cross-Chain Infrastructure Expertise Section -->
-<section class="cross-chain-expertise-section">
+<!-- Tools & Applications Section -->
+<section class="tools-apps-section">
     <div class="container">
-        <h2 class="cross-chain-expertise-title">Cross-Chain Infrastructure Expertise</h2>
-        <p class="cross-chain-expertise-subtitle">Deep understanding of bridge security, protocol architecture, <br>and the challenges of building truly decentralized infrastructure.</p>
-        
-        <div class="cross-chain-solutions-grid">
-            <!-- Bridge Security Analysis -->
-            <div class="solution-category bridge-security-category">
-                <div class="solution-header">
-                    <span class="solution-icon">🛡️</span>
-                    <h3 class="solution-title">Bridge Security Analysis</h3>
-                </div>
-                <div class="solution-items">
-                    <div class="solution-item">
-                        <div class="solution-item-icon">🔍</div>
-                        <div class="solution-item-content">
-                            <h4>Security Audits</h4>
-                            <p>Comprehensive analysis of bridge architectures and trust assumptions</p>
+        <h2 class="latest-analysis-title">Tools & Applications</h2>
+        <p class="latest-analysis-subtitle">Live dashboards and interactive tools for cross-chain analysis, portfolio tracking, and security monitoring.</p>
+
+        <div class="blog-section-wrapper">
+            <div class="blog-cards-grid">
+                {% for tool in recent_tools %}
+                <a href="{{ url_for('tools.tool', slug=tool.slug) }}" target="_blank" rel="noopener noreferrer" class="blog-card-link">
+                    <article class="blog-card">
+                        <h3 class="blog-card-title">{{ tool.title }}</h3>
+                        <p class="blog-card-excerpt">{{ tool.description|truncate(200, True, '...') }}</p>
+                        <div class="blog-card-meta">
+                            <span class="blog-card-category">
+                                {% if tool.tags %}{{ tool.tags[0] }}{% else %}Tool{% endif %}
+                            </span>
+                            <span class="blog-card-readtime {% if tool.status == 'live' %}tool-status-live{% else %}tool-status-soon{% endif %}">
+                                {% if tool.status == 'live' %}Live{% else %}Coming Soon{% endif %}
+                            </span>
                         </div>
-                    </div>
-                    <div class="solution-item">
-                        <div class="solution-item-icon">📊</div>
-                        <div class="solution-item-content">
-                            <h4>Risk Assessment</h4>
-                            <p>Quantitative risk scoring based on TVL, validator sets, and history</p>
-                        </div>
-                    </div>
-                    <div class="solution-item">
-                        <div class="solution-item-icon">⚠️</div>
-                        <div class="solution-item-content">
-                            <h4>Vulnerability Research</h4>
-                            <p>Analysis of past bridge hacks and common attack vectors</p>
-                        </div>
-                    </div>
-                </div>
+                    </article>
+                </a>
+                {% else %}
+                <p class="no-posts-message">No tools available at this time.</p>
+                {% endfor %}
             </div>
 
-            <!-- Infrastructure Development -->
-            <div class="solution-category protocol-analysis-category">
-                <div class="solution-header">
-                    <span class="solution-icon">🏗️</span>
-                    <h3 class="solution-title">Infrastructure Development</h3>
-                </div>
-                <div class="solution-items">
-                    <div class="solution-item">
-                        <div class="solution-item-icon">🔧</div>
-                        <div class="solution-item-content">
-                            <h4>Tool Development</h4>
-                            <p>Building practical tools for cross-chain users, developers, and researchers</p>
-                        </div>
-                    </div>
-                    <div class="solution-item">
-                        <div class="solution-item-icon">📈</div>
-                        <div class="solution-item-content">
-                            <h4>Analytics Platforms</h4>
-                            <p>Data visualization and monitoring for multi-chain protocols and networks</p>
-                        </div>
-                    </div>
-                    <div class="solution-item">
-                        <div class="solution-item-icon">🌐</div>
-                        <div class="solution-item-content">
-                            <h4>Protocol Integration</h4>
-                            <p>Smart contract development and cross-chain implementation</p>
-                        </div>
-                    </div>
-                </div>
+            <a href="https://web3fuel.io/tools/" target="_blank" rel="noopener noreferrer" class="view-all-btn view-all-tools-btn">
+                <span class="btn-default">>></span>
+                <span class="btn-hover">View All Tools</span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- The Mission Section -->
+<section class="core-expertise-section">
+    <div class="container">
+        <h2 class="latest-analysis-title">The Mission</h2>
+
+        <!-- About Blurb -->
+        <div class="about-blurb">
+            <div class="about-image">
+                <img src="{{ url_for('static', filename='images/profile.png') }}" alt="Alex - Web3Fuel Founder">
+            </div>
+            <div class="about-text">
+                <p>Hi, my name is Alex. I started Web3Fuel after one too many "How did that bridge get hacked?" moments. As a DeFi user, I was also tired of crossing my fingers every time I bridged assets, so I decided to actually understand the infrastructure.</p>
+                <p>Turns out, most bridge hacks follow predictable patterns. Most security issues are preventable. And most documentation assumes you already know what you're trying to learn.</p>
+                <p>Web3Fuel exists to change that by analyzing protocols, documenting vulnerabilities, and creating resources that help developers and users navigate cross-chain infrastructure with confidence, not hope.</p>
             </div>
         </div>
-        
-        <!-- Split-Screen Comparison -->
-        <div class="comparison-grid">
-            <!-- Research Impact -->
-            <div class="comparison-card cross-chain-tools">
-                <div class="comparison-header">
-                    <span class="comparison-badge">Research Impact</span>
-                </div>
-                <p class="comparison-quote">"Analyzed 15 major bridges and uncovered common security patterns that led to $2.8B in losses"</p>
-                <p class="comparison-result">→ Result: 47-page security framework helping users choose safer bridges</p>
-                
-                <ul class="feature-list">
-                    <li>Comprehensive bridge database</li>
-                    <li>Risk scoring methodology</li>
-                    <li>Real-world vulnerability analysis</li>
+
+        <p class="latest-analysis-subtitle">Skills & Core Expertise</p>
+
+        <div class="expertise-cards-grid">
+            <!-- Card 1: Cross-Chain Infrastructure -->
+            <div class="expertise-card expertise-card-1">
+                <h3 class="expertise-card-title">Cross-Chain Infrastructure & Interoperability</h3>
+                <p class="expertise-card-description">Bridge security analysis, cross-chain messaging protocols, and multi-chain architecture. Analyzing trust models, validator networks, and consensus mechanisms.</p>
+                <ul class="expertise-list">
+                    <li>Bridge security audits & risk assessment</li>
+                    <li>Cross-chain messaging protocol analysis</li>
+                    <li>Multi-chain integration patterns</li>
+                    <li>Validator & relayer network evaluation</li>
                 </ul>
             </div>
-            
-            <!-- Tool Development -->
-            <div class="comparison-card research-insights">
-                <div class="comparison-header">
-                    <span class="comparison-badge">Tool Development</span>
-                </div>
-                <p class="comparison-quote">"Built bridge fee tracker showing users can save 60%+ by choosing optimal routes"</p>
-                <p class="comparison-result">→ Result: Helping users save thousands in unnecessary bridge fees</p>
-                
-                <ul class="feature-list">
-                    <li>Real-time fee comparison</li>
-                    <li>Multi-chain portfolio tracking</li>
-                    <li>Transaction monitoring dashboard</li>
+
+            <!-- Card 2: Smart Contract Security -->
+            <div class="expertise-card expertise-card-2">
+                <h3 class="expertise-card-title">Smart Contract Security & Vulnerability Research</h3>
+                <p class="expertise-card-description">Exploit analysis, vulnerability documentation, and security best practices. Breaking down bridge hacks and DeFi exploits to identify common attack vectors and prevention strategies.</p>
+                <ul class="expertise-list">
+                    <li>Exploit case studies & post-mortems</li>
+                    <li>Vulnerability patterns</li>
+                    <li>Security audit methodology</li>
+                    <li>Attack vector documentation</li>
+                </ul>
+            </div>
+
+            <!-- Card 3: Protocol Architecture -->
+            <div class="expertise-card expertise-card-3">
+                <h3 class="expertise-card-title">Protocol Architecture & Development</h3>
+                <p class="expertise-card-description">Deep-dive analysis of protocol design patterns, economic models, and technical implementation. Simplifying how decentralized systems are built and secured.</p>
+                <ul class="expertise-list">
+                    <li>Protocol design pattern analysis</li>
+                    <li>Economic incentive structures</li>
+                    <li>Technical documentation & tutorials</li>
+                    <li>Developer tooling & integration guides</li>
                 </ul>
             </div>
         </div>

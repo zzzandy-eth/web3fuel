@@ -61,6 +61,7 @@ npm-debug.log*
 *.tmp
 *.temp
 *.cache
+tmpclaude-*
 
 # Local development
 .pytest_cache/
