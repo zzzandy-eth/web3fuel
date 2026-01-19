@@ -525,6 +525,67 @@ header {
     margin-bottom: 1rem;
 }
 
+/* Carousel Styles - Active only on screens >= 1500px */
+.carousel-container {
+    position: relative;
+    width: 100%;
+}
+
+.carousel-track {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+
+.carousel-item {
+    min-width: 0;
+}
+
+/* Enable carousel animation only on wide screens */
+@media (min-width: 1500px) {
+    .carousel-container {
+        position: relative;
+    }
+
+    .carousel-viewport {
+        overflow: hidden;
+        padding: 1rem;
+        margin: -1rem;
+    }
+
+    .carousel-track {
+        display: flex;
+        transition: transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+
+    .carousel-item {
+        flex: 0 0 calc((100% - 4rem) / 3);
+    }
+}
+
+/* Grid layout for narrower screens - show only 3 items */
+@media (max-width: 1499px) {
+    .carousel-track {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .carousel-item:nth-child(n+4) {
+        display: none;
+    }
+}
+
+@media (max-width: 1250px) {
+    .carousel-track {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .carousel-track {
+        gap: 1.5rem;
+    }
+}
+
 .blog-cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -552,6 +613,25 @@ header {
     border-color: var(--primary);
     transform: translateY(-5px);
     box-shadow: 0 10px 30px rgba(0, 255, 234, 0.15);
+}
+
+.blog-card-image {
+    width: calc(100% + 4rem);
+    margin: -2rem -2rem 1.5rem -2rem;
+    border-radius: 0.9rem 0.9rem 0 0;
+    overflow: hidden;
+    height: 160px;
+}
+
+.blog-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.blog-card:hover .blog-card-image img {
+    transform: scale(1.05);
 }
 
 .blog-card-title {
@@ -632,6 +712,102 @@ header {
 
 .view-all-btn:hover .btn-hover {
     display: inline;
+}
+
+/* Carousel Navigation Buttons */
+.carousel-nav-btn {
+    display: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 1rem 1.25rem;
+    background: rgba(255, 0, 255, 0.1);
+    border: 2px solid var(--secondary);
+    color: var(--secondary);
+    font-size: 1.1rem;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 10;
+}
+
+.carousel-nav-btn:hover {
+    background: rgba(255, 0, 255, 0.2);
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
+}
+
+.carousel-nav-prev {
+    left: 0;
+    transform: translateX(calc(-100% - 1.5rem)) translateY(-50%);
+}
+
+.carousel-nav-next {
+    right: 0;
+    transform: translateX(calc(100% + 1.5rem)) translateY(-50%);
+}
+
+/* Centered View All Button */
+.view-all-centered-btn {
+    display: none;
+    width: 70%;
+    max-width: calc((100% - 4rem) / 3 * 0.7);
+    margin: 2rem auto 0;
+    padding: 1rem 1.5rem;
+    background: rgba(255, 0, 255, 0.1);
+    border: 2px solid var(--secondary);
+    color: var(--secondary);
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    text-decoration: none;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.view-all-centered-btn:hover {
+    background: rgba(255, 0, 255, 0.2);
+    box-shadow: 0 0 20px rgba(255, 0, 255, 0.4);
+}
+
+/* Show carousel nav buttons and centered link only on wide screens */
+@media (min-width: 1500px) {
+    .carousel-nav-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .view-all-link-btn {
+        display: none;
+    }
+
+    .view-all-centered-btn {
+        display: block;
+    }
+}
+
+/* Cyan color accent for Research section buttons */
+.services-section .carousel-nav-btn {
+    background: rgba(0, 255, 234, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.services-section .carousel-nav-btn:hover {
+    background: rgba(0, 255, 234, 0.2);
+    box-shadow: 0 0 20px rgba(0, 255, 234, 0.4);
+}
+
+.services-section .view-all-centered-btn {
+    background: rgba(0, 255, 234, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.services-section .view-all-centered-btn:hover {
+    background: rgba(0, 255, 234, 0.2);
+    box-shadow: 0 0 20px rgba(0, 255, 234, 0.4);
 }
 
 .no-posts-message {

@@ -40,29 +40,42 @@
         <p class="latest-analysis-subtitle">Deep dives into bridge security, multi-chain protocols, and cross-chain infrastructure development.</p>
 
         <div class="blog-section-wrapper">
-            <div class="blog-cards-grid">
-                {% for post in recent_posts %}
-                <a href="{{ post.link }}" target="_blank" rel="noopener noreferrer" class="blog-card-link">
-                    <article class="blog-card">
-                        <h3 class="blog-card-title">{{ post.title }}</h3>
-                        <p class="blog-card-excerpt">{{ post.excerpt }}</p>
-                        <div class="blog-card-meta">
-                            <span class="blog-card-category">
-                                {% if post.categories %}{{ post.categories[0].name }}{% else %}Research{% endif %}
-                            </span>
-                            <span class="blog-card-readtime">🕐 {{ post.reading_time }} min read</span>
-                        </div>
-                    </article>
-                </a>
-                {% else %}
-                <p class="no-posts-message">No articles available at this time.</p>
-                {% endfor %}
+            <div class="carousel-container" id="researchCarousel">
+                <button class="carousel-nav-btn carousel-nav-prev" data-carousel="researchCarousel">&lt;&lt;</button>
+                <div class="carousel-viewport">
+                <div class="carousel-track">
+                    {% for post in recent_posts %}
+                    <a href="{{ post.link }}" target="_blank" rel="noopener noreferrer" class="blog-card-link carousel-item">
+                        <article class="blog-card">
+                            {% if post.featured_image %}
+                            <div class="blog-card-image">
+                                <img src="{{ post.featured_image }}" alt="{{ post.title }}">
+                            </div>
+                            {% endif %}
+                            <h3 class="blog-card-title">{{ post.title }}</h3>
+                            <p class="blog-card-excerpt">{{ post.excerpt }}</p>
+                            <div class="blog-card-meta">
+                                <span class="blog-card-category">
+                                    {% if post.categories %}{{ post.categories[0].name }}{% else %}Research{% endif %}
+                                </span>
+                                <span class="blog-card-readtime">🕐 {{ post.reading_time }} min read</span>
+                            </div>
+                        </article>
+                    </a>
+                    {% else %}
+                    <p class="no-posts-message">No articles available at this time.</p>
+                    {% endfor %}
+                </div>
+                </div>
+                <button class="carousel-nav-btn carousel-nav-next" data-carousel="researchCarousel">&gt;&gt;</button>
             </div>
 
-            <a href="/blog" target="_blank" rel="noopener noreferrer" class="view-all-btn">
+            <a href="/blog" target="_blank" rel="noopener noreferrer" class="view-all-btn view-all-link-btn">
                 <span class="btn-default">>></span>
                 <span class="btn-hover">View All Research</span>
             </a>
+
+            <a href="/blog" target="_blank" rel="noopener noreferrer" class="view-all-centered-btn">View All Research</a>
         </div>
     </div>
 </section>
@@ -74,31 +87,39 @@
         <p class="latest-analysis-subtitle">Live dashboards and interactive tools for cross-chain analysis, portfolio tracking, and security monitoring.</p>
 
         <div class="blog-section-wrapper">
-            <div class="blog-cards-grid">
-                {% for tool in recent_tools %}
-                <a href="{{ url_for('tools.tool', slug=tool.slug) }}" target="_blank" rel="noopener noreferrer" class="blog-card-link">
-                    <article class="blog-card">
-                        <h3 class="blog-card-title">{{ tool.title }}</h3>
-                        <p class="blog-card-excerpt">{{ tool.description|truncate(200, True, '...') }}</p>
-                        <div class="blog-card-meta">
-                            <span class="blog-card-category">
-                                {% if tool.tags %}{{ tool.tags[0] }}{% else %}Tool{% endif %}
-                            </span>
-                            <span class="blog-card-readtime {% if tool.status == 'live' %}tool-status-live{% else %}tool-status-soon{% endif %}">
-                                {% if tool.status == 'live' %}Live{% else %}Coming Soon{% endif %}
-                            </span>
-                        </div>
-                    </article>
-                </a>
-                {% else %}
-                <p class="no-posts-message">No tools available at this time.</p>
-                {% endfor %}
+            <div class="carousel-container" id="toolsCarousel">
+                <button class="carousel-nav-btn carousel-nav-prev" data-carousel="toolsCarousel">&lt;&lt;</button>
+                <div class="carousel-viewport">
+                <div class="carousel-track">
+                    {% for tool in recent_tools %}
+                    <a href="{{ url_for('tools.tool', slug=tool.slug) }}" target="_blank" rel="noopener noreferrer" class="blog-card-link carousel-item">
+                        <article class="blog-card">
+                            <h3 class="blog-card-title">{{ tool.title }}</h3>
+                            <p class="blog-card-excerpt">{{ tool.description|truncate(200, True, '...') }}</p>
+                            <div class="blog-card-meta">
+                                <span class="blog-card-category">
+                                    {% if tool.tags %}{{ tool.tags[0] }}{% else %}Tool{% endif %}
+                                </span>
+                                <span class="blog-card-readtime {% if tool.status == 'live' %}tool-status-live{% else %}tool-status-soon{% endif %}">
+                                    {% if tool.status == 'live' %}Live{% else %}Coming Soon{% endif %}
+                                </span>
+                            </div>
+                        </article>
+                    </a>
+                    {% else %}
+                    <p class="no-posts-message">No tools available at this time.</p>
+                    {% endfor %}
+                </div>
+                </div>
+                <button class="carousel-nav-btn carousel-nav-next" data-carousel="toolsCarousel">&gt;&gt;</button>
             </div>
 
-            <a href="https://web3fuel.io/tools/" target="_blank" rel="noopener noreferrer" class="view-all-btn view-all-tools-btn">
+            <a href="/tools" target="_blank" rel="noopener noreferrer" class="view-all-btn view-all-link-btn">
                 <span class="btn-default">>></span>
                 <span class="btn-hover">View All Tools</span>
             </a>
+
+            <a href="/tools" target="_blank" rel="noopener noreferrer" class="view-all-centered-btn">View All Tools</a>
         </div>
     </div>
 </section>
@@ -286,6 +307,174 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             datetimeInput.min = now.toISOString().slice(0, 16);
         }
+
+        // Store carousel controls for button access
+        const carouselControls = {};
+
+        // Initialize carousels with step-based rotation (only on screens >= 1500px)
+        function initCarousel(carouselId, intervalMs = 8000) {
+            const carousel = document.getElementById(carouselId);
+            if (!carousel) return;
+
+            const track = carousel.querySelector('.carousel-track');
+            if (!track) return;
+
+            const items = Array.from(track.querySelectorAll('.carousel-item'));
+            if (items.length <= 1) return;
+
+            let currentIndex = 0;
+            let intervalId = null;
+            let isInitialized = false;
+            const totalItems = items.length;
+
+            function isCarouselEnabled() {
+                return window.innerWidth >= 1500;
+            }
+
+            function cloneItems() {
+                if (isInitialized) return;
+                items.forEach(item => {
+                    const clone = item.cloneNode(true);
+                    clone.classList.add('carousel-clone');
+                    track.appendChild(clone);
+                });
+                isInitialized = true;
+            }
+
+            function removeClones() {
+                if (!isInitialized) return;
+                track.querySelectorAll('.carousel-clone').forEach(clone => clone.remove());
+                isInitialized = false;
+            }
+
+            function getItemWidth() {
+                const item = track.querySelector('.carousel-item');
+                if (!item) return 0;
+                const style = getComputedStyle(track);
+                const gap = parseFloat(style.gap) || 32;
+                return item.offsetWidth + gap;
+            }
+
+            function slideTo(index) {
+                if (!isCarouselEnabled()) return;
+                const itemWidth = getItemWidth();
+                track.style.transform = `translateX(-${index * itemWidth}px)`;
+            }
+
+            function slideNext() {
+                if (!isCarouselEnabled()) return;
+                resetAutoplay();
+                currentIndex++;
+                slideTo(currentIndex);
+
+                if (currentIndex >= totalItems) {
+                    setTimeout(() => {
+                        track.style.transition = 'none';
+                        currentIndex = 0;
+                        track.style.transform = 'translateX(0)';
+                        track.offsetHeight;
+                        track.style.transition = 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)';
+                    }, 800);
+                }
+            }
+
+            function slidePrev() {
+                if (!isCarouselEnabled()) return;
+                resetAutoplay();
+                if (currentIndex === 0) {
+                    // Jump to end instantly, then animate back
+                    track.style.transition = 'none';
+                    currentIndex = totalItems;
+                    slideTo(currentIndex);
+                    track.offsetHeight;
+                    track.style.transition = 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)';
+                }
+                currentIndex--;
+                slideTo(currentIndex);
+            }
+
+            function resetAutoplay() {
+                stopAutoplay();
+                startAutoplay();
+            }
+
+            function startAutoplay() {
+                if (intervalId || !isCarouselEnabled()) return;
+                intervalId = setInterval(slideNext, intervalMs);
+            }
+
+            function stopAutoplay() {
+                if (intervalId) {
+                    clearInterval(intervalId);
+                    intervalId = null;
+                }
+            }
+
+            function enableCarousel() {
+                cloneItems();
+                startAutoplay();
+            }
+
+            function disableCarousel() {
+                stopAutoplay();
+                removeClones();
+                currentIndex = 0;
+                track.style.transition = 'none';
+                track.style.transform = 'translateX(0)';
+            }
+
+            // Pause on hover
+            carousel.addEventListener('mouseenter', stopAutoplay);
+            carousel.addEventListener('mouseleave', () => {
+                if (isCarouselEnabled()) startAutoplay();
+            });
+
+            // Handle window resize
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    if (isCarouselEnabled() && !isInitialized) {
+                        enableCarousel();
+                    } else if (!isCarouselEnabled() && isInitialized) {
+                        disableCarousel();
+                    } else if (isCarouselEnabled()) {
+                        track.style.transition = 'none';
+                        currentIndex = 0;
+                        track.style.transform = 'translateX(0)';
+                        setTimeout(() => {
+                            track.style.transition = 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1)';
+                        }, 50);
+                    }
+                }, 100);
+            });
+
+            // Initial setup
+            if (isCarouselEnabled()) {
+                enableCarousel();
+            }
+
+            // Store controls for button access
+            carouselControls[carouselId] = { slideNext, slidePrev };
+        }
+
+        initCarousel('researchCarousel', 8000);
+        initCarousel('toolsCarousel', 8000);
+
+        // Set up navigation button click handlers
+        document.querySelectorAll('.carousel-nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const carouselId = btn.dataset.carousel;
+                const controls = carouselControls[carouselId];
+                if (!controls) return;
+
+                if (btn.classList.contains('carousel-nav-prev')) {
+                    controls.slidePrev();
+                } else if (btn.classList.contains('carousel-nav-next')) {
+                    controls.slideNext();
+                }
+            });
+        });
     });
 
     // Toggle appointment fields
