@@ -12,7 +12,7 @@ cross_chain_tools = [
         "why_valuable": "Save hours on social media engagement with AI-powered replies",
         "technical_scope": "Claude AI integration, Discord bot, 3-tier API fallback system",
         "hiring_impact": "Demonstrates AI integration, API orchestration, and full-stack development",
-        "tags": ["AI Tools", "Social Media", "Automation"],
+        "tags": ["Social Media"],
         "date": datetime(2024, 12, 10),
         "slug": "reply-assistant",
         "status": "live"
@@ -23,7 +23,7 @@ cross_chain_tools = [
         "why_valuable": "Access tamper-proof, decentralized price data directly from Chainlink oracles",
         "technical_scope": "Web3.py integration, Chainlink AggregatorV3 contracts, Ethereum mainnet",
         "hiring_impact": "Demonstrates Web3 development skills and smart contract interaction",
-        "tags": ["Price Feeds", "Chainlink", "DeFi Tools"],
+        "tags": ["Price Feeds"],
         "date": datetime(2024, 12, 30),
         "slug": "crypto-prices",
         "status": "live"
@@ -34,7 +34,7 @@ cross_chain_tools = [
         "why_valuable": "Save 30-60% on bridge fees with optimal route selection",
         "technical_scope": "Real-time fee tracking across 4 major bridge protocols",
         "hiring_impact": "Shows you understand bridge economics and can build useful products",
-        "tags": ["Fee Savings", "Cross-Chain", "DeFi Tools"],
+        "tags": ["DeFi Tools"],
         "date": datetime(2025, 9, 23),
         "slug": "bridge-fee-comparison",
         "status": "coming_soon"
@@ -45,7 +45,7 @@ cross_chain_tools = [
         "why_valuable": "Manage all crypto assets across 6+ chains in one place",
         "technical_scope": "Live price tracking with comprehensive chain coverage",
         "hiring_impact": "Demonstrates full-stack capabilities and multi-chain technical knowledge",
-        "tags": ["Portfolio Tracking", "Multi-Chain", "Asset Management"],
+        "tags": ["Multi-Chain"],
         "date": datetime(2025, 9, 23),
         "slug": "portfolio-dashboard",
         "status": "coming_soon"
@@ -56,7 +56,7 @@ cross_chain_tools = [
         "why_valuable": "Never lose track of bridge transactions with instant alerts",
         "technical_scope": "Smart notifications across all major bridge protocols",
         "hiring_impact": "Shows deep understanding of bridge mechanics",
-        "tags": ["Transaction Alerts", "Bridge Safety", "Peace of Mind"],
+        "tags": ["Cross-Chain"],
         "date": datetime(2026, 1, 10),
         "slug": "transaction-monitor",
         "status": "coming_soon"
@@ -67,7 +67,7 @@ cross_chain_tools = [
         "why_valuable": "Cut transaction costs with AI-powered gas price predictions",
         "technical_scope": "ML-based gas price forecasting and smart alerts",
         "hiring_impact": "Combines technical skills with practical user value",
-        "tags": ["Gas Savings", "AI Predictions", "Cost Efficiency"],
+        "tags": ["AI Tools"],
         "date": datetime(2026, 1, 20),
         "slug": "gas-optimizer",
         "status": "coming_soon"
@@ -78,7 +78,7 @@ cross_chain_tools = [
         "why_valuable": "Protect your assets with expert security analysis",
         "technical_scope": "Research-backed safety ratings for all bridges",
         "hiring_impact": "Connects your research expertise with practical tools",
-        "tags": ["Asset Protection", "Security Research", "Risk Analysis"],
+        "tags": ["Security Research"],
         "date": datetime(2026, 2, 1),
         "slug": "security-scorecard",
         "status": "coming_soon"
@@ -135,20 +135,34 @@ def tools():
     template_str = '''
 {% extends "base.html" %}
 
-{% block title %}Cross-Chain Tools - Web3Fuel.io{% endblock %}
-
-{% block head %}
-<!-- Add EmailJS script -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-{% endblock %}
+{% block title %}Tools - Web3Fuel.io{% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<section class="hero">
+<!-- Search and Filter Section -->
+<section class="search-section">
     <div class="container">
-        <div class="hero-content-centered">
-            <h1>Cross-Chain:<br><span class="typewriter">Tools</span></h1>
-            <h3>Compare fees, track portfolios, and monitor transactions across all major bridge protocols.</h3>
+        <div class="search-container">
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search tools..." class="search-input">
+                <button id="search-button" class="search-button">🔍</button>
+                <button id="clear-search" class="clear-button" style="display: none;">✕</button>
+            </div>
+            <div class="tag-filters">
+                <button class="tag-btn active" data-tag="">All Tools</button>
+                {% set all_tags = [] %}
+                {% for tool in cross_chain_tools %}
+                    {% if tool.status == 'live' or tool.status == 'beta' %}
+                        {% for tag in tool.tags %}
+                            {% if tag not in all_tags %}
+                                {% set _ = all_tags.append(tag) %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+                {% for tag in all_tags|sort %}
+                <button class="tag-btn" data-tag="{{ tag }}">{{ tag }}</button>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </section>
@@ -156,61 +170,54 @@ def tools():
 <!-- Tools Section -->
 <section class="tools-section">
     <div class="container">
-        <div class="tools-content">
+        <div class="no-results" id="no-results" style="display: none;">
+            <p>No tools found matching your search criteria.</p>
+        </div>
+        <div class="tools-grid" id="tools-grid">
             {% for tool in cross_chain_tools %}
-            <article class="tool-card {% if tool.status == 'coming_soon' %}coming-soon{% endif %}">
-                <div class="tool-meta">
-                    <div class="tool-tags">
-                        {% for tag in tool.tags %}
-                        <span class="tag">{{ tag }}</span>
-                        {% endfor %}
-                    </div>
-                </div>
-
-                <h2 class="tool-title">{{ tool.title }}</h2>
-
-                <div class="tool-status">
-                    {% if tool.status == 'live' %}
-                    <span class="status-badge live">Status: Live</span>
-                    {% elif tool.status == 'beta' %}
-                    <span class="status-badge beta">Status: Beta</span>
-                    {% elif tool.status == 'coming_soon' %}
-                    <span class="status-badge coming-soon">Status: Coming Soon</span>
-                    {% endif %}
-                </div>
+            <article class="tool-card {% if tool.status == 'coming_soon' %}coming-soon{% endif %}"
+                     data-title="{{ tool.title|lower }}"
+                     data-description="{{ tool.description|lower }}"
+                     data-tags="{{ tool.tags|join(',')|lower }}">
+                <h3 class="tool-title">{{ tool.title }}</h3>
 
                 <div class="tool-description">
-                    <p>{{ tool.description }}</p>
+                    <p class="description-text">{{ tool.description }}</p>
+                    <button class="read-more-btn" onclick="toggleDescription(this)">Read More</button>
+                    <div class="tool-meta">
+                        <div class="tool-tags">
+                            {% for tag in tool.tags %}
+                            <span class="tag">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                        <div class="tool-status">
+                            {% if tool.status == 'live' %}
+                            <span class="status-badge live">Live</span>
+                            {% elif tool.status == 'beta' %}
+                            <span class="status-badge beta">Beta</span>
+                            {% elif tool.status == 'coming_soon' %}
+                            <span class="status-badge coming-soon">Coming Soon</span>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
 
-                <div class="tool-details">
-                    <div class="details-horizontal">
-                        <span class="detail-text">💡 {{ tool.why_valuable }}</span>
-                        <span class="detail-text">⚙️ {{ tool.technical_scope }}</span>
-                    </div>
+                <div class="tool-value">
+                    <span class="value-text">💡 {{ tool.why_valuable }}</span>
                 </div>
 
                 <div class="tool-actions">
                     {% if tool.status == 'live' %}
-                    <a href="{{ url_for('tools.tool', slug=tool.slug) }}" class="action-btn primary" target="_blank">
+                    <a href="{{ url_for('tools.tool', slug=tool.slug) }}" class="action-btn primary">
                         Launch Tool
                     </a>
-                    <a href="https://github.com/zzzandy-eth/web3fuel/" class="action-btn secondary" target="_blank">
-                        View Source
-                    </a>
                     {% elif tool.status == 'beta' %}
-                    <a href="{{ url_for('tools.tool', slug=tool.slug) }}" class="action-btn primary beta" target="_blank">
+                    <a href="{{ url_for('tools.tool', slug=tool.slug) }}" class="action-btn primary beta">
                         Try Beta
-                    </a>
-                    <a href="/contact" class="action-btn secondary">
-                        Report Issues
                     </a>
                     {% elif tool.status == 'coming_soon' %}
                     <button class="action-btn primary disabled" disabled>
-                        Get Notified
-                    </button>
-                    <button class="action-btn secondary disabled" disabled>
-                        View Roadmap
+                        Coming Soon
                     </button>
                     {% endif %}
                 </div>
@@ -220,96 +227,34 @@ def tools():
     </div>
 </section>
 
-<!-- CTA Section -->
-<section class="cta">
-    <div class="container">
-        <div class="cta-container-horizontal">
-            <div class="cta-content-horizontal">
-                <div class="cta-text-horizontal">
-                    <h2 class="cta-title-horizontal">Stay Updated with Cross-Chain Tools</h2>
-                </div>
-
-                <div class="email-signup-horizontal">
-                    <form id="contactForm" onsubmit="sendEmail(event)">
-                        <div class="email-form-horizontal">
-                            <input type="email" id="email" name="email" class="email-input-horizontal" placeholder="Enter your email address" required>
-                            <button type="submit" class="email-submit-horizontal">Subscribe</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
 <style>
-/* Horizontal CTA Section Styles */
-.cta {
-    padding: 60px 0;
+/* Search Section */
+.search-section {
+    padding: 40px 0 20px 0;
     background: transparent;
 }
 
-.cta-container-horizontal {
-    background: rgba(0, 0, 0, 0.8);
-    border: 2px solid var(--border-color, #27272a);
-    border-radius: 16px;
-    padding: 40px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.1);
-    position: relative;
-    overflow: hidden;
+.search-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
 }
 
-.cta-container-horizontal::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--primary), var(--secondary));
-}
-
-.cta-content-horizontal {
+.search-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 30px;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 25px;
     flex-wrap: wrap;
 }
 
-.cta-text-horizontal {
+.search-input {
     flex: 1;
     min-width: 300px;
-}
-
-.cta-title-horizontal {
-    font-size: 28px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0;
-    text-shadow: 0 0 15px rgba(0, 255, 234, 0.5);
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.email-signup-horizontal {
-    flex: 1;
-    min-width: 300px;
-}
-
-.email-form-horizontal {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-}
-
-.email-input-horizontal {
-    flex: 1;
+    max-width: 500px;
     padding: 14px 20px;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     border: 2px solid var(--border-color, #27272a);
     border-radius: 8px;
     color: #ffffff;
@@ -317,18 +262,18 @@ def tools():
     transition: all 0.3s ease;
 }
 
-.email-input-horizontal:focus {
+.search-input:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 15px rgba(0, 255, 234, 0.3);
 }
 
-.email-input-horizontal::placeholder {
+.search-input::placeholder {
     color: var(--text-muted, #a1a1aa);
 }
 
-.email-submit-horizontal {
-    padding: 14px 28px;
+.search-button {
+    padding: 14px 20px;
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     color: black;
     font-weight: 600;
@@ -336,245 +281,96 @@ def tools():
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    white-space: nowrap;
+    font-size: 16px;
 }
 
-.email-submit-horizontal:hover {
+.search-button:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 255, 234, 0.4);
 }
 
-/* Responsive CTA */
-@media (max-width: 768px) {
-    .cta-content-horizontal {
-        flex-direction: column;
-        text-align: center;
-        gap: 25px;
-    }
-
-    .cta-text-horizontal,
-    .email-signup-horizontal {
-        min-width: 100%;
-    }
-
-    .cta-title-horizontal {
-        font-size: 24px;
-    }
-
-    .email-form-horizontal {
-        flex-direction: column;
-        gap: 15px;
-    }
-
-    .email-input-horizontal,
-    .email-submit-horizontal {
-        width: 100%;
-    }
-}
-
-@media (max-width: 480px) {
-    .cta-container-horizontal {
-        padding: 30px 20px;
-    }
-
-    .cta-title-horizontal {
-        font-size: 22px;
-    }
-}
-
-/* Hero Section Override - More specific selector to override global styles */
-.hero {
-    padding: 2.5rem 0 !important;
-    min-height: auto !important;
-    border-bottom: none !important;
-}
-
-/* Hero Section Centered Styles */
-.hero-content-centered {
-    text-align: center;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 1rem 20px;
-}
-
-.hero-content-centered h1 {
-    font-size: 64px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0 0 35px 0;
-    line-height: 1.1;
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
-    position: relative;
-}
-
-.typewriter {
-    color: var(--primary);
-    position: relative;
-    display: inline-block;
-    overflow: hidden;
-    white-space: nowrap;
-    width: 0;
-    animation: typewriter-complete 8s infinite;
-}
-
-.typewriter::after {
-    content: '|';
-    color: var(--primary);
-    animation: blink 1s infinite;
-    text-shadow: 0 0 5px var(--primary);
-}
-
-@keyframes typewriter-complete {
-    /* Typing phase - 0 to 1.6 seconds */
-    0% {
-        width: 0;
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    20% {
-        width: 100%;
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-
-    /* Glitch phase during display - 1.6 to 5.6 seconds */
-    21%, 22% {
-        width: 100%;
-        transform: translate(2px, 0) skew(0deg);
-        text-shadow: -2px 0 var(--secondary), 2px 0 var(--primary);
-    }
-    23%, 24% {
-        width: 100%;
-        transform: translate(-2px, 0) skew(0deg);
-        text-shadow: 2px 0 var(--secondary), -2px 0 var(--primary);
-    }
-    24.5% {
-        width: 100%;
-        transform: translate(0, 0) skew(5deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-
-    /* Continue glitch pattern */
-    30%, 31% {
-        width: 100%;
-        transform: translate(2px, 0) skew(0deg);
-        text-shadow: -2px 0 var(--secondary), 2px 0 var(--primary);
-    }
-    32%, 33% {
-        width: 100%;
-        transform: translate(-2px, 0) skew(0deg);
-        text-shadow: 2px 0 var(--secondary), -2px 0 var(--primary);
-    }
-    33.5% {
-        width: 100%;
-        transform: translate(0, 0) skew(5deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-
-    /* Normal display between glitches */
-    25%, 29%, 34%, 70% {
-        width: 100%;
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-
-    /* Backspace phase - realistic character-by-character deletion */
-    75% {
-        width: 80%; /* 4/5 characters - "Tool" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    82% {
-        width: 60%; /* 3/5 characters - "Too" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    89% {
-        width: 40%; /* 2/5 characters - "To" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    94% {
-        width: 20%; /* 1/5 characters - "T" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    98%, 100% {
-        width: 0; /* Fully deleted */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-}
-
-@keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
-}
-
-.hero-content-centered h3 {
-    font-size: 28px;
-    font-weight: 400;
-    color: #ffffff;
-    margin: 0 0 30px 0;
-    line-height: 1.4;
-    text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-}
-
-/* Responsive adjustments for centered hero */
-@media (max-width: 768px) {
-    .hero-content-centered {
-        padding: 1rem 20px;
-    }
-
-    .hero-content-centered h1 {
-        font-size: 48px;
-    }
-
-    .hero-content-centered h3 {
-        font-size: 20px;
-    }
-}
-
-@media (max-width: 480px) {
-    .hero-content-centered {
-        padding: 1rem 15px;
-    }
-
-    .hero-content-centered h1 {
-        font-size: 40px;
-    }
-
-    .hero-content-centered h3 {
-        font-size: 18px;
-    }
-}
-
-/* Tools Section Styles - Matrix Theme */
-.tools-section {
-    padding: 0 0 2.5rem 0;
+.clear-button {
+    padding: 14px 16px;
     background: transparent;
-    position: relative;
-    margin-top: -1.5rem;
+    color: var(--primary);
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 16px;
 }
 
-.tools-content {
-    max-width: 900px;
-    margin: 0 auto;
+.clear-button:hover {
+    background: var(--primary);
+    color: black;
+    transform: translateY(-2px);
+}
+
+.tag-filters {
     display: flex;
-    flex-direction: column;
-    gap: 60px;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.tag-btn {
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 20px;
+    color: #a1a1aa;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.tag-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.tag-btn.active {
+    background: rgba(0, 255, 234, 0.2);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* No Results */
+.no-results {
+    text-align: center;
+    color: #a1a1aa;
+    font-size: 16px;
+    padding: 40px 20px;
+}
+
+/* Tools Section Styles - Grid Layout */
+.tools-section {
+    padding: 20px 0 60px 0;
+    background: transparent;
+}
+
+.tools-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 25px;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
 .tool-card {
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.6);
     border: 2px solid var(--border-color, #27272a);
     border-radius: 16px;
-    padding: 40px;
+    padding: 25px;
     box-shadow: 0 4px 20px rgba(0, 255, 234, 0.1);
     transition: all 0.3s ease;
     backdrop-filter: blur(10px);
     position: relative;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .tool-card::before {
@@ -593,60 +389,46 @@ def tools():
     border-color: var(--primary);
 }
 
+.tool-card.hidden {
+    display: none;
+}
+
 .tool-meta {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 15px;
+    margin-top: 12px;
+    gap: 10px;
 }
 
 .tool-tags {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
+    flex: 1;
 }
 
 .tag {
     background: rgba(0, 255, 234, 0.2);
     color: var(--primary);
-    padding: 4px 12px;
+    padding: 3px 10px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border: 1px solid rgba(0, 255, 234, 0.3);
 }
 
-.tool-date {
-    color: var(--text-muted, #a1a1aa);
-    font-size: 14px;
-    font-weight: 500;
-}
-
-.tool-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--text, #ffffff);
-    margin: 0 0 15px 0;
-    line-height: 1.3;
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
 .tool-status {
-    margin-bottom: 20px;
+    flex-shrink: 0;
 }
 
 .status-badge {
     display: inline-block;
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -670,73 +452,81 @@ def tools():
     border: 1px solid rgba(156, 163, 175, 0.3);
 }
 
-.tool-description {
-    margin-bottom: 30px;
-}
-
-.tool-description p {
-    font-size: 16px;
-    line-height: 1.6;
+.tool-title {
+    font-size: 20px;
+    font-weight: 700;
     color: var(--text, #ffffff);
-    margin: 0;
+    margin: 0 0 12px 0;
+    line-height: 1.3;
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
-.tool-details {
-    margin-bottom: 20px;
-    padding: 20px 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.tool-description {
+    margin-bottom: 15px;
+    flex: 1;
 }
 
-.details-horizontal {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
+.tool-description .description-text {
     font-size: 14px;
+    line-height: 1.6;
     color: #e2e8f0;
-    font-weight: 500;
+    margin: 0 0 8px 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    transition: all 0.3s ease;
 }
 
-.details-horizontal .detail-text:not(:last-child):after {
-    content: ' | ';
+.tool-description.expanded .description-text {
+    display: block;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+}
+
+.read-more-btn {
+    background: none;
+    border: none;
     color: var(--primary);
-    margin-left: 15px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 8px;
+    transition: all 0.2s ease;
+    display: block;
 }
 
-.detail-text {
-    color: #e2e8f0;
+.read-more-btn:hover {
+    text-decoration: underline;
+    opacity: 0.8;
 }
 
-.tool-hiring-impact {
-    margin-bottom: 30px;
-    padding: 15px;
+.tool-value {
+    margin-bottom: 15px;
+    padding: 12px;
     background: rgba(0, 255, 234, 0.05);
-    border: 1px solid rgba(0, 255, 234, 0.2);
+    border: 1px solid rgba(0, 255, 234, 0.15);
     border-radius: 8px;
 }
 
-.tool-hiring-impact p {
-    margin: 0;
-    font-size: 14px;
+.value-text {
+    font-size: 13px;
     color: var(--primary);
-    line-height: 1.5;
-}
-
-.tool-hiring-impact strong {
-    color: #ffffff;
+    line-height: 1.4;
 }
 
 .tool-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
+    margin-top: auto;
 }
 
 .action-btn {
-    padding: 12px 24px;
+    padding: 10px 20px;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     text-decoration: none;
     border: none;
@@ -745,7 +535,7 @@ def tools():
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    width: 100%;
 }
 
 .action-btn.primary {
@@ -772,32 +562,6 @@ def tools():
     color: white;
 }
 
-.action-btn.secondary {
-    background: transparent;
-    color: var(--primary);
-    border: 2px solid var(--primary);
-}
-
-.action-btn.secondary:hover:not(.disabled) {
-    background: var(--primary);
-    color: black;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.3);
-}
-
-.action-btn.tertiary {
-    background: transparent;
-    color: var(--primary);
-    border: 2px solid var(--primary);
-}
-
-.action-btn.tertiary:hover {
-    background: var(--primary);
-    color: black;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.3);
-}
-
 .action-btn.disabled {
     background: rgba(255, 255, 255, 0.1);
     color: var(--text-muted, #a1a1aa);
@@ -808,9 +572,7 @@ def tools():
 
 /* Coming Soon Tool Styling */
 .tool-card.coming-soon {
-    opacity: 0.5;
-    background: rgba(60, 60, 60, 0.3);
-    border-color: rgba(120, 120, 120, 0.2);
+    opacity: 0.6;
 }
 
 .tool-card.coming-soon:hover {
@@ -827,7 +589,7 @@ def tools():
     background-clip: initial;
 }
 
-.tool-card.coming-soon .tool-description p {
+.tool-card.coming-soon .tool-description .description-text {
     color: #71717a;
 }
 
@@ -837,77 +599,108 @@ def tools():
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-.tool-card.coming-soon .detail-text {
-    color: #71717a;
-}
-
-.tool-card.coming-soon .details-horizontal .detail-text:not(:last-child):after {
-    color: #71717a;
-}
-
-.tool-card.coming-soon .tool-hiring-impact {
-    background: rgba(255, 255, 255, 0.05);
+.tool-card.coming-soon .tool-value {
+    background: rgba(255, 255, 255, 0.03);
     border-color: rgba(255, 255, 255, 0.1);
 }
 
-.tool-card.coming-soon .tool-hiring-impact p {
+.tool-card.coming-soon .value-text {
     color: #71717a;
 }
 
-.tool-card.coming-soon .tool-hiring-impact strong {
-    color: #a1a1aa;
+.tool-card.coming-soon .read-more-btn {
+    color: #71717a;
+}
+
+/* Animations */
+.fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tool-card.coming-soon.fade-in-up {
+    animation: fadeInUpDimmed 0.5s ease forwards;
+}
+
+@keyframes fadeInUpDimmed {
+    to {
+        opacity: 0.6;
+        transform: translateY(0);
+    }
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+    .tools-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        max-width: 800px;
+    }
+}
+
 @media (max-width: 768px) {
-    .tools-section {
-        padding: 60px 0;
+    .search-section {
+        padding: 30px 0 15px 0;
     }
 
-    .tools-content {
-        gap: 40px;
-    }
-
-    .tool-card {
-        padding: 30px 20px;
-    }
-
-    .tool-title {
-        font-size: 24px;
-    }
-
-    .tool-meta {
+    .search-bar {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: stretch;
     }
 
-    .tool-actions {
-        flex-direction: column;
+    .search-input {
+        min-width: 100%;
+        margin-bottom: 10px;
     }
 
-    .action-btn {
+    .search-button,
+    .clear-button {
         width: 100%;
+    }
+
+    .tag-filters {
         justify-content: center;
     }
 
-    .details-horizontal {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+    .tools-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        max-width: 100%;
+    }
+
+    .tool-card {
+        padding: 20px;
+    }
+
+    .tool-title {
+        font-size: 18px;
     }
 }
 
 @media (max-width: 480px) {
     .tool-card {
-        padding: 25px 15px;
+        padding: 18px;
     }
 
     .tool-title {
-        font-size: 22px;
+        font-size: 17px;
     }
 
     .tool-description p {
-        font-size: 15px;
+        font-size: 13px;
+    }
+
+    .tag-btn {
+        padding: 6px 12px;
+        font-size: 12px;
     }
 }
 </style>
@@ -916,51 +709,6 @@ def tools():
 {% block scripts %}
 {{ super() }}
 <script>
-    // Tools subscription form submission
-    function sendEmail(event) {
-        event.preventDefault();
-
-        // Show loading state
-        const submitBtn = event.target.querySelector('.email-submit-horizontal');
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Subscribing...';
-        submitBtn.disabled = true;
-
-        // Initialize EmailJS with your public key
-        emailjs.init("xSYgQUruN6qY2C0o2");
-
-        const params = {
-            name: 'Tools Subscriber',
-            email: document.getElementById('email').value,
-            tools_interests: 'all',
-            message: 'Subscribed via tools updates form'
-        };
-
-        // Send email
-        emailjs.send("service_gf8ewl9", "template_nad2dyc", params)
-            .then(() => {
-                alert("Thanks for subscribing to our tools updates! You'll receive notifications when new tools are launched.");
-                document.getElementById('contactForm').reset();
-
-                // Track newsletter subscription
-                if (typeof gtag !== 'undefined') {
-                    gtag('event', 'newsletter_subscribe', {
-                        'event_category': 'tools',
-                        'event_label': 'tools_form'
-                    });
-                }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-                alert("Sorry, there was an error submitting your subscription. Please try again or reach out directly via LinkedIn.");
-            })
-            .finally(() => {
-                // Reset button state
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
-            });
-    }
-
     // Share tool function
     function shareTool(title, description) {
         if (navigator.share) {
@@ -999,18 +747,142 @@ def tools():
         }
     }
 
+    // Toggle description expand/collapse
+    function toggleDescription(button) {
+        const description = button.parentElement;
+        const isExpanded = description.classList.contains('expanded');
+
+        if (isExpanded) {
+            description.classList.remove('expanded');
+            button.textContent = 'Read More';
+        } else {
+            description.classList.add('expanded');
+            button.textContent = 'Show Less';
+        }
+    }
+
+    // Search and filter functionality
+    let currentSearch = '';
+    let currentTag = '';
+
+    function initializeFilters() {
+        const searchInput = document.getElementById('search-input');
+        const searchButton = document.getElementById('search-button');
+        const clearButton = document.getElementById('clear-search');
+
+        // Search input events
+        searchInput.addEventListener('input', function() {
+            if (this.value.trim() === '') {
+                clearSearch();
+            } else {
+                clearButton.style.display = 'block';
+            }
+        });
+
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        searchButton.addEventListener('click', performSearch);
+        clearButton.addEventListener('click', clearSearch);
+
+        // Tag filter buttons
+        document.querySelectorAll('.tag-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const tag = this.getAttribute('data-tag');
+                selectTag(tag);
+            });
+        });
+    }
+
+    function performSearch() {
+        const searchInput = document.getElementById('search-input');
+        currentSearch = searchInput.value.trim().toLowerCase();
+
+        if (currentSearch) {
+            document.getElementById('clear-search').style.display = 'block';
+        }
+
+        filterTools();
+    }
+
+    function clearSearch() {
+        const searchInput = document.getElementById('search-input');
+        const clearButton = document.getElementById('clear-search');
+
+        searchInput.value = '';
+        currentSearch = '';
+        clearButton.style.display = 'none';
+        filterTools();
+    }
+
+    function selectTag(tag) {
+        currentTag = tag;
+
+        // Update active button
+        document.querySelectorAll('.tag-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.getAttribute('data-tag') === tag) {
+                btn.classList.add('active');
+            }
+        });
+
+        filterTools();
+    }
+
+    function filterTools() {
+        const tools = document.querySelectorAll('.tool-card');
+        const noResults = document.getElementById('no-results');
+        let visibleCount = 0;
+
+        tools.forEach((tool, index) => {
+            const title = tool.getAttribute('data-title') || '';
+            const description = tool.getAttribute('data-description') || '';
+            const tags = tool.getAttribute('data-tags') || '';
+
+            // Check search match
+            let searchMatch = true;
+            if (currentSearch) {
+                searchMatch = title.includes(currentSearch) ||
+                              description.includes(currentSearch) ||
+                              tags.includes(currentSearch);
+            }
+
+            // Check tag match
+            let tagMatch = true;
+            if (currentTag) {
+                tagMatch = tags.toLowerCase().includes(currentTag.toLowerCase());
+            }
+
+            // Show/hide based on filters
+            if (searchMatch && tagMatch) {
+                tool.classList.remove('hidden');
+                tool.style.animationDelay = `${visibleCount * 0.1}s`;
+                visibleCount++;
+            } else {
+                tool.classList.add('hidden');
+            }
+        });
+
+        // Show/hide no results message
+        if (visibleCount === 0) {
+            noResults.style.display = 'block';
+        } else {
+            noResults.style.display = 'none';
+        }
+    }
+
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function() {
-        // Add subtle animations to tools on load
+        initializeFilters();
+
+        // Add fade-in animations to tools on load
         const tools = document.querySelectorAll('.tool-card');
         tools.forEach((tool, index) => {
-            tool.style.opacity = '0';
-            tool.style.transform = 'translateY(20px)';
-            setTimeout(() => {
-                tool.style.transition = 'all 0.6s ease';
-                tool.style.opacity = '1';
-                tool.style.transform = 'translateY(0)';
-            }, index * 150);
+            tool.classList.add('fade-in-up');
+            tool.style.animationDelay = `${index * 0.1}s`;
         });
 
         // Enhance mobile touch interactions
