@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+
+{% block title %}About - Web3Fuel.io{% endblock %}
+
+{% block head %}
+    <meta name="description" content="About Web3Fuel.io - Cross-chain infrastructure research, security analysis, and developer tools. Learn about our mission to make blockchain infrastructure safer and more accessible.">
+{% endblock %}
+
+{% block content %}
+<!-- Hero Section with Image and Title Side by Side -->
+<section class="about-hero">
+    <div class="container">
+        <div class="hero-layout">
+            <div class="hero-image-side">
+                <img src="{{ url_for('static', filename='images/alex-profile-transparent.png') }}" alt="Alex - Web3Fuel Founder" class="profile-image">
+            </div>
+            <div class="hero-text-side">
+                <h1 class="about-main-title">Hi, I'm Alex.</h1>
+                <p class="founder-subtitle"> - Web3Fuel Founder</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- About Web3Fuel Section -->
+<section class="about-section about-web3fuel-section">
+    <div class="container">
+        <div class="content-card">
+            <div class="card-header">
+                <span class="card-label">About</span>
+                <div class="card-line"></div>
+            </div>
+            <div class="card-body">
+                <p>I started Web3Fuel after one too many <strong>"How did that bridge get hacked?"</strong> moments.</p>
+                <p>As a DeFi user, I was tired of crossing my fingers every time I bridged assets, so I decided to actually understand the infrastructure.</p>
+                <p>Turns out, most bridge hacks follow predictable patterns. Most security issues are preventable. And most documentation assumes you already know what you're trying to learn.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Mission Section -->
+<section class="about-section">
+    <div class="container">
+        <div class="content-card">
+            <div class="card-header">
+                <span class="card-label">The Mission</span>
+                <div class="card-line"></div>
+            </div>
+            <div class="card-body">
+                <p class="card-lead">Web3Fuel exists to make blockchain infrastructure safer and more accessible.</p>
+                <p>Through protocol analysis, security research, and practical tools, I help developers and users navigate the multi-chain ecosystem with confidence.</p>
+                <div class="stat-highlight">
+                    <span class="stat-number">$2.8B+</span>
+                    <span class="stat-text">lost to bridge hacks since 2021</span>
+                </div>
+                <p>These aren't just numbers. They represent real people who trusted infrastructure that wasn't ready. By analyzing what went wrong, documenting best practices, and building security tools, Web3Fuel helps the ecosystem learn from past mistakes.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- What's Next Section -->
+<section class="about-section">
+    <div class="container">
+        <div class="content-card">
+            <div class="card-header">
+                <span class="card-label">What's Next</span>
+                <div class="card-line"></div>
+            </div>
+            <div class="card-body">
+                <p class="card-lead">The multi-chain future is inevitable.</p>
+                <p>Assets will flow between chains, protocols will communicate across networks, and users will expect seamless interoperability. But this only works if we build it on secure foundations.</p>
+                <p>That's where Web3Fuel comes in. By analyzing what went wrong, documenting best practices, and building tools that make security visible, we help the ecosystem build infrastructure that actually deserves user trust.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Connect Section -->
+<section class="about-section about-section-last">
+    <div class="container">
+        <div class="content-card">
+            <div class="card-header">
+                <span class="card-label">Let's Connect</span>
+                <div class="card-line"></div>
+            </div>
+            <div class="card-body">
+                <p class="card-lead">Whether you're working on cross-chain infrastructure, need security analysis, or just want to chat about the multi-chain future, I'd love to hear from you.</p>
+                <a href="/contact" class="cta-button">
+                    <span>Get In Touch</span>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<style>
+/* Hero Section */
+.about-hero {
+    padding: 60px 0 0;
+    position: relative;
+}
+
+.hero-layout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2rem;
+    align-items: end;
+    max-width: 630px;
+    margin: 0 auto;
+}
+
+.hero-image-side {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: flex-end;
+}
+
+.profile-image {
+    width: 200px;
+    height: auto;
+    display: block;
+    margin-bottom: -3px;
+    margin-left: -40px;
+    /* Cyan glow effect + sharpening */
+    filter:
+        contrast(1.15)
+        drop-shadow(0 0 10px rgba(0, 255, 234, 0.4))
+        drop-shadow(0 0 20px rgba(0, 255, 234, 0.3))
+        drop-shadow(0 0 40px rgba(0, 255, 234, 0.2))
+        drop-shadow(0 5px 20px rgba(0, 0, 0, 0.4));
+    image-rendering: -webkit-optimize-contrast;
+}
+
+.hero-text-side {
+    padding-bottom: 2.5rem;
+}
+
+.about-main-title {
+    font-size: 3.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    line-height: 1.2;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.founder-subtitle {
+    font-size: 1.4rem;
+    font-weight: 500;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, rgba(0, 255, 234, 0.7), rgba(0, 163, 255, 0.7));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+}
+
+/* For screens 500px+, keep layout side-by-side */
+@media (min-width: 500px) {
+    .hero-layout {
+        grid-template-columns: auto 1fr;
+        align-items: end;
+        gap: 2rem;
+        max-width: 630px;
+    }
+
+    .hero-image-side {
+        align-items: flex-end;
+        justify-content: flex-start;
+    }
+
+    .profile-image {
+        width: 200px;
+        height: auto;
+    }
+
+    .hero-text-side {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding-bottom: 2rem;
+    }
+}
+
+/* Content Sections */
+.about-section {
+    padding: 30px 0;
+}
+
+.about-web3fuel-section {
+    padding-top: 0;
+}
+
+.about-section-last {
+    padding-bottom: 100px;
+}
+
+/* Content Card (shared style) */
+.content-card {
+    max-width: 900px;
+    margin: 0 auto;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 20, 30, 0.6) 100%);
+    border: 1px solid rgba(0, 255, 234, 0.2);
+    border-radius: 24px;
+    padding: 2.5rem 3rem;
+    backdrop-filter: blur(10px);
+    position: relative;
+    overflow: hidden;
+}
+
+.content-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.card-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--primary);
+    white-space: nowrap;
+}
+
+.card-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0, 255, 234, 0.5), transparent);
+}
+
+.card-body p {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #c8d4e3;
+    margin-bottom: 1.25rem;
+}
+
+.card-body p:last-child {
+    margin-bottom: 0;
+}
+
+.card-lead {
+    font-size: 1.35rem !important;
+    color: #fff !important;
+    font-weight: 500;
+}
+
+/* Stat Highlight */
+.stat-highlight {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    margin: 1.5rem 0;
+    background: rgba(255, 107, 107, 0.1);
+    border-left: 3px solid #ff6b6b;
+    border-radius: 0 12px 12px 0;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: #ff6b6b;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.stat-text {
+    font-size: 1.1rem;
+    color: #e2e8f0;
+}
+
+/* CTA Button */
+.cta-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    margin-top: 0.5rem;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: #000;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-decoration: none;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.cta-button svg {
+    width: 20px;
+    height: 20px;
+    transition: transform 0.3s ease;
+}
+
+.cta-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(0, 255, 234, 0.3);
+}
+
+.cta-button:hover svg {
+    transform: translateX(5px);
+}
+
+/* Responsive - screens below 500px */
+@media (max-width: 499px) {
+    .about-hero {
+        padding: 40px 0 0;
+    }
+
+    .hero-layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+        text-align: center;
+    }
+
+    .hero-image-side {
+        order: 2;
+        display: flex;
+        justify-content: center;
+        margin-bottom: -60px;
+        position: relative;
+        z-index: 10;
+    }
+
+    .profile-image {
+        width: 160px;
+        margin-bottom: 0;
+        margin-left: 0;
+    }
+
+    .hero-text-side {
+        order: 1;
+        padding-bottom: 1rem;
+    }
+
+    .about-main-title {
+        font-size: 2.2rem;
+    }
+
+    .founder-subtitle {
+        font-size: 1rem;
+    }
+
+    .about-web3fuel-section {
+        padding-top: 0;
+    }
+
+    .content-card {
+        padding: 1.5rem;
+        padding-top: 70px;
+        border-radius: 16px;
+    }
+
+    .card-body p {
+        font-size: 1rem;
+    }
+
+    .card-lead {
+        font-size: 1.15rem !important;
+    }
+
+    .stat-highlight {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1.25rem 1.5rem;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+    }
+
+    .about-section {
+        padding: 20px 0;
+    }
+
+    .about-section-last {
+        padding-bottom: 60px;
+    }
+}
+</style>
+{% endblock %}
