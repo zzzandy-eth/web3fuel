@@ -2,15 +2,18 @@
 <header>
     <div class="header-container">
         <a href="/" class="logo">
-            <span class="logo-icon">🚀</span>
+            <span class="logo-icon-wrapper">
+                <img src="{{ url_for('static', filename='images/web3fuel-logo.svg') }}" alt="Web3Fuel Logo" class="logo-icon logo-default">
+                <img src="{{ url_for('static', filename='images/web3fuel-logo-neon.svg') }}" alt="Web3Fuel Logo" class="logo-icon logo-neon">
+            </span>
             <span class="logo-text">Web3Fuel.io</span>
         </a>
         
         <nav class="nav-desktop">
+            <a href="/research" class="nav-link{% if request.endpoint == 'research.research_index' %} active{% endif %}">Research</a>
             <a href="/tools" class="nav-link{% if request.endpoint == 'tools.tools' %} active{% endif %}">Tools</a>
-            <a href="/research" class="nav-link{% if request.endpoint == 'research.research' %} active{% endif %}">Research</a>
-            <a href="/blog" class="nav-link{% if request.endpoint == 'blog.blog_index' %} active{% endif %}">Blog</a>
-            <a href="/contact" class="nav-link contact-highlight{% if request.endpoint == 'contact.contact' %} active{% endif %}">Contact</a>
+            <a href="/about" class="nav-link{% if request.endpoint == 'about.about' %} active{% endif %}">About</a>
+            <a href="/contact" class="nav-link{% if request.endpoint == 'contact.contact' %} active{% endif %}">Contact</a>
         </nav>
         
         <button class="menu-button" id="menu-button">☰</button>
@@ -18,11 +21,10 @@
     
     <!-- Mobile Menu -->
     <div class="mobile-menu" id="mobile-menu">
-        <button class="close-menu" id="close-menu">✕</button>
         <nav>
+            <a href="/research" class="mobile-nav-link{% if request.endpoint == 'research.research_index' %} active{% endif %}">Research</a>
             <a href="/tools" class="mobile-nav-link{% if request.endpoint == 'tools.tools' %} active{% endif %}">Tools</a>
-            <a href="/research" class="mobile-nav-link{% if request.endpoint == 'research.research' %} active{% endif %}">Research</a>
-            <a href="/blog" class="mobile-nav-link{% if request.endpoint == 'blog.blog_index' %} active{% endif %}">Blog</a>
+            <a href="/about" class="mobile-nav-link{% if request.endpoint == 'about.about' %} active{% endif %}">About</a>
             <a href="/contact" class="mobile-nav-link{% if request.endpoint == 'contact.contact' %} active{% endif %}">Contact</a>
         </nav>
     </div>
