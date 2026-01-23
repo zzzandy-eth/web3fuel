@@ -1,6 +1,121 @@
 {% extends "base.html" %}
 
+{% block head %}
+<!-- Prefetch other pages during loading -->
+<link rel="prefetch" href="/research">
+<link rel="prefetch" href="/tools">
+<link rel="prefetch" href="/about">
+<link rel="prefetch" href="/contact">
+<style>
+    /* Loading Screen Styles - Inline to load immediately */
+    .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    .loading-screen.loaded {
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    .loading-logo-container {
+        position: relative;
+        width: 160px;
+        height: 160px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .loading-logo {
+        width: 100px;
+        height: 100px;
+        object-fit: contain;
+        transition: opacity 0.3s ease;
+        position: absolute;
+    }
+
+    .loading-logo.default {
+        opacity: 1;
+    }
+
+    .loading-logo.neon {
+        opacity: 0;
+    }
+
+    .loading-logo-container.neon-active .loading-logo.default {
+        opacity: 0;
+    }
+
+    .loading-logo-container.neon-active .loading-logo.neon {
+        opacity: 1;
+    }
+
+    .progress-ring {
+        position: absolute;
+        width: 160px;
+        height: 160px;
+        transform: rotate(-90deg);
+    }
+
+    .progress-ring-bg {
+        fill: none;
+        stroke: rgba(0, 255, 234, 0.1);
+        stroke-width: 3;
+    }
+
+    .progress-ring-fill {
+        fill: none;
+        stroke: url(#progressGradient);
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-dasharray: 452;
+        stroke-dashoffset: 452;
+        transition: stroke-dashoffset 0.1s ease;
+        filter: drop-shadow(0 0 6px rgba(0, 255, 234, 0.6));
+    }
+
+    .loading-percentage {
+        position: absolute;
+        bottom: -35px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--primary, #00ffea);
+        font-family: 'JetBrains Mono', monospace;
+        letter-spacing: 1px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
+<!-- Loading Screen -->
+<div class="loading-screen" id="loadingScreen">
+    <div class="loading-logo-container" id="logoContainer">
+        <svg class="progress-ring" viewBox="0 0 160 160">
+            <defs>
+                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#00ffea"/>
+                    <stop offset="100%" style="stop-color:#ff00ff"/>
+                </linearGradient>
+            </defs>
+            <circle class="progress-ring-bg" cx="80" cy="80" r="72"/>
+            <circle class="progress-ring-fill" id="progressRing" cx="80" cy="80" r="72"/>
+        </svg>
+        <img src="{{ url_for('static', filename='images/web3fuel-logo.svg') }}" alt="Web3Fuel" class="loading-logo default">
+        <img src="{{ url_for('static', filename='images/web3fuel-logo-neon.svg') }}" alt="Web3Fuel" class="loading-logo neon">
+    </div>
+    <span class="loading-percentage" id="loadingPercentage">0%</span>
+</div>
 <div class="global-spotlight"></div>
 
 <!-- Hero Section -->
@@ -70,12 +185,12 @@
                 <button class="carousel-nav-btn carousel-nav-next" data-carousel="researchCarousel">&gt;&gt;</button>
             </div>
 
-            <a href="/blog" target="_blank" rel="noopener noreferrer" class="view-all-btn view-all-link-btn">
+            <a href="/research" target="_blank" rel="noopener noreferrer" class="view-all-btn view-all-link-btn">
                 <span class="btn-default">>></span>
                 <span class="btn-hover">View All Research</span>
             </a>
 
-            <a href="/blog" target="_blank" rel="noopener noreferrer" class="view-all-centered-btn">View All Research</a>
+            <a href="/research" target="_blank" rel="noopener noreferrer" class="view-all-centered-btn">View All Research</a>
         </div>
     </div>
 </section>
@@ -94,7 +209,7 @@
                     {% for tool in recent_tools %}
                     <a href="{{ url_for('tools.tool', slug=tool.slug) }}" target="_blank" rel="noopener noreferrer" class="blog-card-link carousel-item">
                         <article class="blog-card">
-                            <h3 class="blog-card-title">{{ tool.title }}</h3>
+                            <h3 class="blog-card-title">{% if tool.emoji %}<span class="tool-emoji">{{ tool.emoji }}</span> {% endif %}{{ tool.title }}</h3>
                             <p class="blog-card-excerpt">{{ tool.description|truncate(200, True, '...') }}</p>
                             <div class="blog-card-meta">
                                 <span class="blog-card-category">
@@ -237,6 +352,108 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    // Loading Screen Progress
+    (function() {
+        const loadingScreen = document.getElementById('loadingScreen');
+        const progressRing = document.getElementById('progressRing');
+        const percentageText = document.getElementById('loadingPercentage');
+        const logoContainer = document.getElementById('logoContainer');
+
+        if (!loadingScreen) return;
+
+        // Skip loading screen if user has already seen it this session
+        if (sessionStorage.getItem('loadingShown')) {
+            loadingScreen.style.display = 'none';
+            return;
+        }
+
+        const circumference = 2 * Math.PI * 72; // r=72
+        let currentProgress = 0;
+        let targetProgress = 0;
+        let animationFrame;
+
+        function setProgress(percent) {
+            const offset = circumference - (percent / 100) * circumference;
+            progressRing.style.strokeDashoffset = offset;
+            percentageText.textContent = Math.round(percent) + '%';
+
+            // Switch to neon logo at 99%
+            if (percent >= 99 && !logoContainer.classList.contains('neon-active')) {
+                logoContainer.classList.add('neon-active');
+            }
+        }
+
+        function animateProgress() {
+            if (currentProgress < targetProgress) {
+                currentProgress += (targetProgress - currentProgress) * 0.1;
+                if (targetProgress - currentProgress < 0.5) {
+                    currentProgress = targetProgress;
+                }
+                setProgress(currentProgress);
+                animationFrame = requestAnimationFrame(animateProgress);
+            }
+        }
+
+        function updateTarget(percent) {
+            targetProgress = Math.min(percent, 100);
+            if (!animationFrame) {
+                animateProgress();
+            }
+        }
+
+        // Simulate initial progress while resources load
+        let simulatedProgress = 0;
+        const simulateInterval = setInterval(() => {
+            if (simulatedProgress < 70) {
+                simulatedProgress += Math.random() * 8;
+                updateTarget(Math.min(simulatedProgress, 70));
+            }
+        }, 100);
+
+        // Track actual resource loading
+        let resourcesLoaded = 0;
+        const images = document.images;
+        const totalResources = images.length + 1; // +1 for DOM
+
+        function resourceLoaded() {
+            resourcesLoaded++;
+            const realProgress = 70 + (resourcesLoaded / totalResources) * 25;
+            updateTarget(realProgress);
+        }
+
+        // Track image loading
+        for (let img of images) {
+            if (img.complete) {
+                resourceLoaded();
+            } else {
+                img.addEventListener('load', resourceLoaded);
+                img.addEventListener('error', resourceLoaded);
+            }
+        }
+
+        // DOM Content Loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            clearInterval(simulateInterval);
+            updateTarget(85);
+        });
+
+        // Window fully loaded
+        window.addEventListener('load', () => {
+            clearInterval(simulateInterval);
+            updateTarget(99);
+
+            // Brief pause at 99% to show neon logo, then complete
+            setTimeout(() => {
+                updateTarget(100);
+                setTimeout(() => {
+                    loadingScreen.classList.add('loaded');
+                    // Mark loading as shown for this session
+                    sessionStorage.setItem('loadingShown', 'true');
+                }, 300);
+            }, 400);
+        });
+    })();
+
     document.addEventListener('DOMContentLoaded', function() {
         // Global Spotlight Effect (homepage only - hidden in hero section)
         const spotlight = document.querySelector('.global-spotlight');
@@ -312,6 +529,7 @@
         const carouselControls = {};
 
         // Initialize carousels with step-based rotation (only on screens >= 1500px)
+        // Carousels only start when scrolled into view
         function initCarousel(carouselId, intervalMs = 8000) {
             const carousel = document.getElementById(carouselId);
             if (!carousel) return;
@@ -325,6 +543,8 @@
             let currentIndex = 0;
             let intervalId = null;
             let isInitialized = false;
+            let isInView = false;
+            let hasBeenInView = false;
             const totalItems = items.length;
 
             function isCarouselEnabled() {
@@ -395,11 +615,11 @@
 
             function resetAutoplay() {
                 stopAutoplay();
-                startAutoplay();
+                if (isInView) startAutoplay();
             }
 
             function startAutoplay() {
-                if (intervalId || !isCarouselEnabled()) return;
+                if (intervalId || !isCarouselEnabled() || !isInView) return;
                 intervalId = setInterval(slideNext, intervalMs);
             }
 
@@ -412,7 +632,7 @@
 
             function enableCarousel() {
                 cloneItems();
-                startAutoplay();
+                if (isInView) startAutoplay();
             }
 
             function disableCarousel() {
@@ -426,7 +646,7 @@
             // Pause on hover
             carousel.addEventListener('mouseenter', stopAutoplay);
             carousel.addEventListener('mouseleave', () => {
-                if (isCarouselEnabled()) startAutoplay();
+                if (isCarouselEnabled() && isInView) startAutoplay();
             });
 
             // Handle window resize
@@ -434,11 +654,11 @@
             window.addEventListener('resize', () => {
                 clearTimeout(resizeTimeout);
                 resizeTimeout = setTimeout(() => {
-                    if (isCarouselEnabled() && !isInitialized) {
+                    if (isCarouselEnabled() && !isInitialized && hasBeenInView) {
                         enableCarousel();
                     } else if (!isCarouselEnabled() && isInitialized) {
                         disableCarousel();
-                    } else if (isCarouselEnabled()) {
+                    } else if (isCarouselEnabled() && isInitialized) {
                         track.style.transition = 'none';
                         currentIndex = 0;
                         track.style.transform = 'translateX(0)';
@@ -449,10 +669,29 @@
                 }, 100);
             });
 
-            // Initial setup
-            if (isCarouselEnabled()) {
-                enableCarousel();
-            }
+            // Intersection Observer - only start carousel when in view
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    isInView = entry.isIntersecting;
+
+                    if (isInView) {
+                        hasBeenInView = true;
+                        if (isCarouselEnabled()) {
+                            if (!isInitialized) {
+                                enableCarousel();
+                            } else {
+                                startAutoplay();
+                            }
+                        }
+                    } else {
+                        stopAutoplay();
+                    }
+                });
+            }, {
+                threshold: 0.2 // Start when 20% of carousel is visible
+            });
+
+            observer.observe(carousel);
 
             // Store controls for button access
             carouselControls[carouselId] = { slideNext, slidePrev };
