@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from .blog import fetch_wordpress_posts, get_cached_data, get_cache_key
+from .research import fetch_wordpress_posts, get_cached_data, get_cache_key
 from .tools import cross_chain_tools
 
 # Create blueprint
