@@ -1,188 +1,106 @@
 {% extends "base.html" %}
 
-{% block title %}Cross-Chain Research - Web3Fuel.io{% endblock %}
+{% block title %}Research - Web3Fuel.io{% endblock %}
 
 {% block head %}
-<!-- Add EmailJS script -->
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <meta name="description" content="Expert insights on cross-chain infrastructure, bridge security, and multi-chain development from Web3Fuel.io">
+    <meta name="keywords" content="cross-chain, blockchain, cryptocurrency, web3, bridge security, multi-chain, defi">
+    <link rel="alternate" type="application/rss+xml" title="Web3Fuel Research RSS" href="/research/feed">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://web3fuel.io/research/">
+    <meta property="og:title" content="Research - Web3Fuel.io">
+    <meta property="og:description" content="Expert insights on cross-chain infrastructure, bridge security, and multi-chain development">
+    <meta property="og:image" content="https://web3fuel.io/static/og-image.png">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://web3fuel.io/research/">
+    <meta property="twitter:title" content="Research - Web3Fuel.io">
+    <meta property="twitter:description" content="Expert insights on cross-chain infrastructure, bridge security, and multi-chain development">
+    <meta property="twitter:image" content="https://web3fuel.io/static/og-image.png">
 {% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<section class="hero">
+<!-- Search and Filter Section -->
+<section class="search-section">
     <div class="container">
-        <div class="hero-content-centered">
-            <h1>Cross-Chain:<br><span class="typewriter">Research</span></h1>
-            <h3>Deep-dive analysis and insights into cross-chain infrastructure, bridge security, and multi-chain protocols.</h3>
-
-        </div>
-    </div>
-</section>
-
-<!-- Research Publications Section -->
-<section class="research-publications">
-    <div class="container">
-        <div class="research-publications-content">
-            {% for paper in research_papers %}
-            <article class="research-article{% if paper.coming_soon %} coming-soon{% endif %}">
-                <div class="article-meta">
-                    <div class="article-tags">
-                        {% for tag in paper.tags %}
-                        <span class="tag">{{ tag }}</span>
-                        {% endfor %}
-                    </div>
-                    <div class="article-date">
-                        {% if paper.coming_soon %}
-                            Available on: {{ paper.date.strftime('%B %d, %Y') }}
-                        {% else %}
-                            {{ paper.date.strftime('%B %d, %Y') }}
-                        {% endif %}
-                    </div>
-                </div>
-                
-                <h2 class="article-title">
-                    {% if paper.coming_soon %}Coming Soon: {% endif %}{{ paper.title }}
-                </h2>
-                
-                <div class="article-synopsis">
-                    <p>{{ paper.synopsis }}</p>
-                </div>
-                
-                <div class="article-details">
-                    <div class="details-horizontal">
-                        {% if not paper.coming_soon %}
-                        <span class="detail-text">📄 Length: {{ paper.pages }} pages</span>
-                        {% endif %}
-                        {% for factor in paper.key_factors[:2] %}
-                        <span class="detail-text">
-                            {% if loop.index == 1 %}🔒
-                            {% else %}⚡
-                            {% endif %}
-                            {{ factor }}
-                        </span>
-                        {% endfor %}
-                    </div>
-                </div>
-                
-                <div class="article-actions">
-                    {% if paper.coming_soon %}
-                    <button class="action-btn primary disabled" disabled>
-                        Read Online (Coming Soon)
-                    </button>
-                    <button class="action-btn secondary disabled" disabled>
-                        Download PDF (Coming Soon)
-                    </button>
-                    <button class="action-btn tertiary disabled" disabled>
-                        🔗 Share Research (Coming Soon)
-                    </button>
-                    {% else %}
-                    <a href="{{ url_for('research.article', slug=paper.slug) }}" class="action-btn primary">
-                        Read Online
-                    </a>
-                    <a href="{{ url_for('research.download_research', filename=paper.pdf_file) }}" class="action-btn secondary">
-                        Download PDF
-                    </a>
-                    <button class="action-btn tertiary" onclick="shareResearch('{{ paper.title }}', '{{ paper.synopsis }}')">
-                        🔗 Share Research
-                    </button>
-                    {% endif %}
-                </div>
-            </article>
-            {% endfor %}
-        </div>
-    </div>
-</section>
-
-<!-- CTA Section -->
-<section class="cta">
-    <div class="container">
-        <div class="cta-container-horizontal">
-            <div class="cta-content-horizontal">
-                <div class="cta-text-horizontal">
-                    <h2 class="cta-title-horizontal">Stay Updated with Cross-Chain Research</h2>
-                </div>
-
-                <div class="email-signup-horizontal">
-                    <form id="contactForm" onsubmit="sendEmail(event)">
-                        <div class="email-form-horizontal">
-                            <input type="email" id="email" name="email" class="email-input-horizontal" placeholder="Enter your email address" required>
-                            <button type="submit" class="email-submit-horizontal">Subscribe</button>
-                        </div>
-                    </form>
-                </div>
+        <div class="search-container">
+            <div class="search-header">
+                <p class="search-subtitle">Deep-dives into blockchain infrastructure, smart contract security, and protocol architecture.</p>
+            </div>
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search articles..." class="search-input">
+                <button id="search-button" class="search-button">🔍</button>
+                <button id="clear-search" class="clear-button" style="display: none;">✕</button>
+            </div>
+            <div class="category-filters">
+                <button class="category-btn active" data-category="">All Topics</button>
+                <div id="category-buttons"></div>
             </div>
         </div>
     </div>
 </section>
 
+<!-- Blog Content Section -->
+<section class="blog-section">
+    <div class="container">
+        <!-- Latest Posts Section -->
+        <div class="posts-section">
+            <div class="posts-header">
+                <div class="loading" id="loading">Loading insights...</div>
+                <div class="no-results" id="no-results" style="display: none;">
+                    <p>No articles found matching your search criteria.</p>
+                </div>
+            </div>
+            <div class="posts-grid" id="posts-grid"></div>
+        </div>
+    </div>
+</section>
+
 <style>
-/* Horizontal CTA Section Styles */
-.cta {
-    padding: 60px 0;
+/* Search Section */
+.search-section {
+    padding: 40px 0 20px 0;
     background: transparent;
 }
 
-.cta-container-horizontal {
-    background: rgba(0, 0, 0, 0.8);
-    border: 2px solid var(--border-color, #27272a);
-    border-radius: 16px;
-    padding: 40px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.1);
-    position: relative;
-    overflow: hidden;
+.search-header {
+    padding-top: 40px;
+    margin-bottom: 50px;
 }
 
-.cta-container-horizontal::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--primary), var(--secondary));
+.search-subtitle {
+    font-size: 24px;
+    color: #ffffff;
+    margin: 0 auto;
+    line-height: 1.5;
+    font-weight: 550;
+    max-width: 80%;
 }
 
-.cta-content-horizontal {
+.search-container {
+    max-width: 800px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.search-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 30px;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 30px;
     flex-wrap: wrap;
 }
 
-.cta-text-horizontal {
+.search-input {
     flex: 1;
     min-width: 300px;
-}
-
-.cta-title-horizontal {
-    font-size: 28px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0;
-    text-shadow: 0 0 15px rgba(0, 255, 234, 0.5);
-    background: linear-gradient(45deg, var(--primary), var(--secondary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.email-signup-horizontal {
-    flex: 1;
-    min-width: 300px;
-}
-
-.email-form-horizontal {
-    display: flex;
-    gap: 15px;
-    align-items: center;
-}
-
-.email-input-horizontal {
-    flex: 1;
+    max-width: 500px;
     padding: 14px 20px;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     border: 2px solid var(--border-color, #27272a);
     border-radius: 8px;
     color: #ffffff;
@@ -190,18 +108,18 @@
     transition: all 0.3s ease;
 }
 
-.email-input-horizontal:focus {
+.search-input:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 15px rgba(0, 255, 234, 0.3);
 }
 
-.email-input-horizontal::placeholder {
+.search-input::placeholder {
     color: var(--text-muted, #a1a1aa);
 }
 
-.email-submit-horizontal {
-    padding: 14px 28px;
+.search-button {
+    padding: 14px 20px;
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     color: black;
     font-weight: 600;
@@ -209,318 +127,110 @@
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s ease;
-    white-space: nowrap;
+    font-size: 16px;
 }
 
-.email-submit-horizontal:hover {
+.search-button:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 255, 234, 0.4);
 }
 
-/* Responsive CTA */
-@media (max-width: 768px) {
-    .cta-content-horizontal {
-        flex-direction: column;
-        text-align: center;
-        gap: 25px;
-    }
-
-    .cta-text-horizontal,
-    .email-signup-horizontal {
-        min-width: 100%;
-    }
-
-    .cta-title-horizontal {
-        font-size: 24px;
-    }
-
-    .email-form-horizontal {
-        flex-direction: column;
-        gap: 15px;
-    }
-
-    .email-input-horizontal,
-    .email-submit-horizontal {
-        width: 100%;
-    }
-}
-
-@media (max-width: 480px) {
-    .cta-container-horizontal {
-        padding: 30px 20px;
-    }
-
-    .cta-title-horizontal {
-        font-size: 22px;
-    }
-}
-
-/* Hero Section Override - More specific selector to override global styles */
-.hero {
-    padding: 2.5rem 0 !important;
-    min-height: auto !important;
-    border-bottom: none !important;
-}
-
-/* Hero Section Centered Styles */
-.hero-content-centered {
-    text-align: center;
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 1rem 20px;
-}
-
-.hero-content-centered h1 {
-    font-size: 64px;
-    font-weight: 700;
-    color: #ffffff;
-    margin: 0 0 35px 0;
-    line-height: 1.1;
-    text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
-    position: relative;
-}
-
-.typewriter {
-    color: var(--primary);
-    position: relative;
-    display: inline-block;
-    overflow: hidden;
-    white-space: nowrap;
-    width: 0;
-    animation: typewriter-complete 8s infinite;
-}
-
-.typewriter::after {
-    content: '|';
-    color: var(--primary);
-    animation: blink 1s infinite;
-    text-shadow: 0 0 5px var(--primary);
-}
-
-@keyframes typewriter-complete {
-    /* Typing phase - 0 to 1.6 seconds */
-    0% {
-        width: 0;
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    20% {
-        width: 100%;
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-
-    /* Glitch phase during display - 1.6 to 5.6 seconds */
-    21%, 22% {
-        width: 100%;
-        transform: translate(2px, 0) skew(0deg);
-        text-shadow: -2px 0 var(--secondary), 2px 0 var(--primary);
-    }
-    23%, 24% {
-        width: 100%;
-        transform: translate(-2px, 0) skew(0deg);
-        text-shadow: 2px 0 var(--secondary), -2px 0 var(--primary);
-    }
-    24.5% {
-        width: 100%;
-        transform: translate(0, 0) skew(5deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-
-    /* Continue glitch pattern */
-    30%, 31% {
-        width: 100%;
-        transform: translate(2px, 0) skew(0deg);
-        text-shadow: -2px 0 var(--secondary), 2px 0 var(--primary);
-    }
-    32%, 33% {
-        width: 100%;
-        transform: translate(-2px, 0) skew(0deg);
-        text-shadow: 2px 0 var(--secondary), -2px 0 var(--primary);
-    }
-    33.5% {
-        width: 100%;
-        transform: translate(0, 0) skew(5deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-
-    /* Normal display between glitches */
-    25%, 29%, 34%, 70% {
-        width: 100%;
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-
-    /* Backspace phase - realistic character-by-character deletion */
-    75% {
-        width: 87.5%; /* 7/8 characters - "Researc" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    80% {
-        width: 75%; /* 6/8 characters - "Resear" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    85% {
-        width: 62.5%; /* 5/8 characters - "Resea" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    90% {
-        width: 50%; /* 4/8 characters - "Rese" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    92% {
-        width: 37.5%; /* 3/8 characters - "Res" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    94% {
-        width: 25%; /* 2/8 characters - "Re" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    96% {
-        width: 12.5%; /* 1/8 characters - "R" */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-    98%, 100% {
-        width: 0; /* Fully deleted */
-        transform: translate(0, 0) skew(0deg);
-        text-shadow: 0 0 10px var(--primary);
-    }
-}
-
-@keyframes blink {
-    0%, 50% { opacity: 1; }
-    51%, 100% { opacity: 0; }
-}
-
-.hero-content-centered h3 {
-    font-size: 28px;
-    font-weight: 400;
-    color: #ffffff;
-    margin: 0 0 30px 0;
-    line-height: 1.4;
-    text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
-}
-
-
-/* Responsive adjustments for centered hero */
-@media (max-width: 768px) {
-    .hero-content-centered {
-        padding: 1rem 20px;
-    }
-
-    .hero-content-centered h1 {
-        font-size: 48px;
-    }
-
-    .hero-content-centered h3 {
-        font-size: 20px;
-    }
-
-}
-
-@media (max-width: 480px) {
-    .hero-content-centered {
-        padding: 1rem 15px;
-    }
-
-    .hero-content-centered h1 {
-        font-size: 40px;
-    }
-
-    .hero-content-centered h3 {
-        font-size: 18px;
-    }
-}
-
-/* Research Publications Styles - Matrix Theme */
-.research-publications {
-    padding: 0 0 2.5rem 0;
+.clear-button {
+    padding: 14px 16px;
     background: transparent;
-    position: relative;
-    margin-top: -1.5rem;
-}
-
-.research-publications-content {
-    max-width: 900px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 60px;
-}
-
-.research-article {
-    background: rgba(0, 0, 0, 0.8);
-    border: 2px solid var(--border-color, #27272a);
-    border-radius: 16px;
-    padding: 40px;
-    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.1);
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
-    position: relative;
-    overflow: hidden;
-}
-
-.research-article::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--primary), var(--secondary));
-}
-
-.research-article:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 30px rgba(0, 255, 234, 0.2);
-    border-color: var(--primary);
-}
-
-.article-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-
-.article-tags {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.tag {
-    background: rgba(0, 255, 234, 0.2);
     color: var(--primary);
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border: 1px solid rgba(0, 255, 234, 0.3);
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 16px;
 }
 
-.article-date {
-    color: var(--text-muted, #a1a1aa);
+.clear-button:hover {
+    background: var(--primary);
+    color: black;
+    transform: translateY(-2px);
+}
+
+.category-filters {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.category-btn {
+    padding: 8px 16px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 20px;
+    color: #a1a1aa;
     font-size: 14px;
     font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: capitalize;
 }
 
-.article-title {
-    font-size: 28px;
-    font-weight: 700;
-    color: var(--text, #ffffff);
+.category-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.category-btn.active {
+    background: rgba(0, 255, 234, 0.2);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* Blog Section */
+.blog-section {
+    padding: 20px 0 60px 0;
+    background: transparent;
+}
+
+.no-results {
+    text-align: center;
+    color: #a1a1aa;
+    font-size: 16px;
+    padding: 40px 20px;
+}
+
+.posts-section {
+    margin-bottom: 60px;
+}
+
+.posts-header {
+    margin-bottom: 40px;
+    text-align: center;
+}
+
+.posts-header h2 {
+    font-size: 32px;
+    color: var(--primary);
     margin: 0 0 20px 0;
+}
+
+.loading {
+    text-align: center;
+    color: var(--primary);
+    font-size: 16px;
+    padding: 20px;
+    display: none;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.post-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0 0 15px 0;
     line-height: 1.3;
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     -webkit-background-clip: text;
@@ -528,363 +238,715 @@
     background-clip: text;
 }
 
-.article-synopsis {
-    margin-bottom: 30px;
-}
-
-.article-synopsis p {
-    font-size: 16px;
-    line-height: 1.6;
-    color: var(--text, #ffffff);
-    margin: 0;
-}
-
-.article-details {
-    margin-bottom: 30px;
-    padding: 20px 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.detail-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    margin-bottom: 15px;
-}
-
-.detail-item:last-child {
-    margin-bottom: 0;
-}
-
-.detail-icon {
-    font-size: 16px;
-    margin-top: 2px;
-}
-
-.details-horizontal {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
-    font-size: 14px;
+.post-excerpt {
     color: #e2e8f0;
+    line-height: 1.6;
+    margin: 0 0 20px 0;
+    font-size: 14px;
+}
+
+.post-meta {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.meta-item {
+    color: #a1a1aa;
+    font-size: 12px;
     font-weight: 500;
 }
 
-.details-horizontal .detail-text:not(:last-child):after {
-    content: ' | ';
-    color: var(--primary);
-    margin-left: 15px;
-}
-
-.detail-text {
-    color: #e2e8f0;
-}
-
-.article-actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.action-btn {
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    border: none;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-}
-
-.action-btn.primary {
+.read-more-btn {
     background: linear-gradient(45deg, var(--primary), var(--secondary));
     color: black;
-    font-weight: 700;
-    box-shadow: 0 4px 15px rgba(0, 255, 234, 0.3);
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    display: inline-block;
+    width: fit-content;
 }
 
-.action-btn.primary:hover:not(.disabled) {
+.read-more-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.5);
+    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.4);
     color: white;
 }
 
-.action-btn.secondary {
-    background: transparent;
-    color: var(--primary);
-    border: 2px solid var(--primary);
+/* Posts Grid */
+.posts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-.action-btn.secondary:hover:not(.disabled) {
-    background: var(--primary);
+.post-card {
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid var(--border-color, #27272a);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.1);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    position: relative;
+    cursor: pointer;
+}
+
+.post-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+}
+
+.post-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 255, 234, 0.2);
+    border-color: var(--primary);
+}
+
+.post-image {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    height: 180px;
+    position: relative;
+}
+
+.post-image.image-loading {
+    background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+    background-size: 400% 400%;
+    animation: gradientShift 2s ease infinite;
+}
+
+.post-image.image-error {
+    background: linear-gradient(45deg, var(--primary), var(--secondary));
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: black;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.3);
+    font-weight: bold;
 }
 
-.action-btn.tertiary {
-    background: transparent;
+.post-content {
+    padding: 25px;
+}
+
+.post-card .post-title {
+    font-size: 18px;
+    margin: 0 0 10px 0;
+}
+
+.post-card .post-excerpt {
+    font-size: 13px;
+    margin: 0 0 15px 0;
+}
+
+.post-card .post-meta {
+    margin-bottom: 15px;
+}
+
+.category-tags {
+    margin-bottom: 15px;
+}
+
+.category-tag {
+    background: rgba(0, 255, 234, 0.2);
     color: var(--primary);
-    border: 2px solid var(--primary);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(0, 255, 234, 0.3);
+    margin-right: 8px;
 }
 
-.action-btn.tertiary:hover {
-    background: var(--primary);
-    color: black;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 255, 234, 0.3);
+.post-card .read-more-btn {
+    padding: 8px 16px;
+    font-size: 12px;
 }
 
-.action-btn.disabled {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-muted, #a1a1aa);
-    cursor: not-allowed;
-    opacity: 0.6;
-    border: 2px solid rgba(255, 255, 255, 0.1);
+/* Animations */
+.fade-in-up {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fadeInUp 0.6s ease forwards;
 }
 
-/* Coming Soon Article Styling */
-.research-article.coming-soon {
-    opacity: 0.5;
-    background: rgba(60, 60, 60, 0.3);
-    border-color: rgba(120, 120, 120, 0.2);
-}
-
-.research-article.coming-soon:hover {
-    transform: none;
-    box-shadow: 0 4px 20px rgba(0, 255, 234, 0.05);
-    border-color: rgba(255, 255, 255, 0.2);
-}
-
-.research-article.coming-soon .article-title {
-    color: #a1a1aa;
-    background: none;
-    -webkit-background-clip: initial;
-    -webkit-text-fill-color: initial;
-    background-clip: initial;
-}
-
-.research-article.coming-soon .article-synopsis p {
-    color: #71717a;
-}
-
-.research-article.coming-soon .tag {
-    background: rgba(255, 255, 255, 0.1);
-    color: #a1a1aa;
-    border-color: rgba(255, 255, 255, 0.1);
-}
-
-.research-article.coming-soon .detail-text {
-    color: #71717a;
-}
-
-.research-article.coming-soon .details-horizontal .detail-text:not(:last-child):after {
-    color: #71717a;
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+    .posts-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+        max-width: 800px;
+    }
+}
+
 @media (max-width: 768px) {
-    .research-publications {
-        padding: 60px 0;
+    .search-section {
+        padding: 30px 0 15px 0;
     }
 
-    .research-publications-content {
-        gap: 40px;
+    .search-subtitle {
+        font-size: 20px;
     }
 
-    .research-article {
-        padding: 30px 20px;
+    .search-bar {
+        flex-direction: row;
+        align-items: center;
+        position: relative;
     }
 
-    .article-title {
-        font-size: 24px;
+    .search-input {
+        min-width: 100%;
+        padding-right: 45px;
     }
 
-    .article-meta {
-        flex-direction: column;
-        align-items: flex-start;
+    .search-button {
+        display: none;
     }
 
-    .article-actions {
-        flex-direction: column;
+    .clear-button {
+        position: absolute;
+        right: 10px;
+        padding: 8px 12px;
+        width: auto;
+        font-size: 14px;
     }
 
-    .action-btn {
-        width: 100%;
+    .category-filters {
         justify-content: center;
     }
 
-    .details-horizontal {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+    .posts-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        max-width: 100%;
+    }
+
+    .post-image {
+        height: 150px;
+    }
+
+    .post-content {
+        padding: 20px;
     }
 }
 
 @media (max-width: 480px) {
-    .research-article {
-        padding: 25px 15px;
+    .search-subtitle {
+        font-size: 18px;
     }
 
-    .article-title {
-        font-size: 22px;
-    }
-
-    .article-synopsis p {
-        font-size: 15px;
+    .post-content {
+        padding: 15px;
     }
 }
 </style>
 {% endblock %}
 
 {% block scripts %}
-{{ super() }}
-<script>
-    // Research subscription form submission
-    function sendEmail(event) {
-        event.preventDefault();
+    {{ super() }}
+    <script>
+        // ENHANCED JAVASCRIPT FOR SEARCH AND CATEGORIES
 
-        // Show loading state
-        const submitBtn = event.target.querySelector('.email-submit-horizontal');
-        const originalText = submitBtn.textContent;
-        submitBtn.textContent = 'Subscribing...';
-        submitBtn.disabled = true;
+        // Global state
+        let currentSearch = '';
+        let currentCategory = '';
+        let allCategories = new Set();
+        let isLoading = false;
 
-        // Initialize EmailJS with your public key
-        emailjs.init("xSYgQUruN6qY2C0o2");
+        // ENHANCED JAVASCRIPT FOR BETTER IMAGE HANDLING
 
-        const params = {
-            name: 'Research Subscriber',
-            email: document.getElementById('email').value,
-            research_interests: 'all',
-            message: 'Subscribed via simplified research form'
-        };
+        // Get the best image size based on container dimensions and device pixel ratio
+        function getBestImageSize(imageSizes, containerWidth, containerHeight) {
+            if (!imageSizes || Object.keys(imageSizes).length === 0) {
+                return null;
+            }
+            
+            // Get device pixel ratio for high DPI displays
+            const pixelRatio = window.devicePixelRatio || 1;
+            const targetWidth = containerWidth * pixelRatio;
+            const targetHeight = containerHeight * pixelRatio;
+            
+            // For featured images (larger containers), prefer larger sizes
+            if (containerHeight >= 300) {
+                // On larger screens, prefer the full size or large for 1920x1080 images
+                const screenWidth = window.innerWidth;
+                if (screenWidth >= 1200) {
+                    // Large desktop - use full size first
+                    for (const size of ['full', 'large', 'medium_large', 'medium']) {
+                        if (imageSizes[size]) {
+                            return imageSizes[size];
+                        }
+                    }
+                } else {
+                    // Medium screens - use large first
+                    for (const size of ['large', 'medium_large', 'full', 'medium']) {
+                        if (imageSizes[size]) {
+                            return imageSizes[size];
+                        }
+                    }
+                }
+            } else {
+                // For smaller containers, prefer medium sizes
+                for (const size of ['medium_large', 'large', 'medium', 'full']) {
+                    if (imageSizes[size]) {
+                        return imageSizes[size];
+                    }
+                }
+            }
+            
+            // Fallback to any available size
+            const availableSizes = Object.keys(imageSizes);
+            if (availableSizes.length > 0) {
+                return imageSizes[availableSizes[0]];
+            }
+            
+            return null;
+        }
 
-        // Send email
-        emailjs.send("service_gf8ewl9", "template_nad2dyc", params)
-            .then(() => {
-                alert("Thanks for subscribing to our research updates! You'll receive notifications when new papers are published.");
-                document.getElementById('contactForm').reset();
+        // Create responsive image with loading states
+        function createResponsiveImage(imageData, containerElement, isFeatured = false) {
+            const containerWidth = containerElement.offsetWidth || (isFeatured ? 800 : 400);
+            const containerHeight = isFeatured ? 400 : 250;
+            
+            let imageUrl;
+            
+            if (imageData.featured_image_sizes && Object.keys(imageData.featured_image_sizes).length > 0) {
+                // Use the best available size
+                imageUrl = getBestImageSize(imageData.featured_image_sizes, containerWidth, containerHeight);
+            } else if (imageData.featured_image) {
+                // Fallback to the single featured image
+                imageUrl = imageData.featured_image;
+            }
+            
+            if (!imageUrl) {
+                imageUrl = createPlaceholderImage(imageData.title);
+            }
+            
+            // Add loading class
+            containerElement.classList.add('image-loading');
+            
+            // Create a new image to test loading
+            const testImage = new Image();
+            
+            testImage.onload = function() {
+                // Image loaded successfully
+                containerElement.style.backgroundImage = `url('${imageUrl}')`;
+                containerElement.classList.remove('image-loading');
+                containerElement.classList.add('image-loaded');
+                
+                // Add lazy loading for better performance
+                if ('loading' in HTMLImageElement.prototype) {
+                    testImage.loading = 'lazy';
+                }
+            };
+            
+            testImage.onerror = function() {
+                // Image failed to load, try fallback or placeholder
+                console.warn('Failed to load image:', imageUrl);
+                
+                // Try a different size if available
+                if (imageData.featured_image_sizes) {
+                    const fallbackSizes = ['medium', 'thumbnail', 'full'];
+                    let fallbackFound = false;
+                    
+                    for (const size of fallbackSizes) {
+                        if (imageData.featured_image_sizes[size] && imageData.featured_image_sizes[size] !== imageUrl) {
+                            console.log('Trying fallback size:', size);
+                            imageUrl = imageData.featured_image_sizes[size];
+                            testImage.src = imageUrl; // This will trigger onload/onerror again
+                            fallbackFound = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!fallbackFound) {
+                        // All sizes failed, use placeholder
+                        useErrorState();
+                    }
+                } else {
+                    useErrorState();
+                }
+            };
+            
+            function useErrorState() {
+                containerElement.classList.remove('image-loading');
+                containerElement.classList.add('image-error');
+                const placeholderUrl = createPlaceholderImage(imageData.title);
+                containerElement.style.backgroundImage = `url('${placeholderUrl}')`;
+            }
+            
+            // Start loading the image
+            testImage.src = imageUrl;
+            
+            return imageUrl;
+        }
 
-                // Track newsletter subscription
-                if (typeof gtag !== 'undefined') {
-                    gtag('event', 'newsletter_subscribe', {
-                        'event_category': 'research',
-                        'event_label': 'simplified_form'
+        // Toggle mobile menu (if you have one)
+        function toggleMobileMenu() {
+            // Add mobile menu functionality if needed
+            console.log('Mobile menu toggle');
+        }
+
+        // Create placeholder image
+        function createPlaceholderImage(title) {
+            const colors = ['00ffea', 'ff00ff', '7c3aed'];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23${color}"/><text x="200" y="150" text-anchor="middle" fill="black" font-size="16" font-weight="bold">Web3Fuel</text></svg>`;
+        }
+
+        // Enhanced date formatting
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 1) {
+                return "Yesterday";
+            } else if (diffDays < 7) {
+                return `${diffDays} days ago`;
+            } else if (diffDays < 30) {
+                const weeks = Math.floor(diffDays / 7);
+                return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+            } else {
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+        }
+
+        // Track blog clicks for analytics
+        function trackBlogClick(postTitle, postUrl) {
+            console.log('Blog click tracked:', postTitle, postUrl);
+        }
+
+        // Search and category functionality
+        function initializeSearch() {
+            const searchInput = document.getElementById('search-input');
+            const searchButton = document.getElementById('search-button');
+            const clearButton = document.getElementById('clear-search');
+
+            // Search input event listeners
+            searchInput.addEventListener('input', function() {
+                if (this.value.trim() !== currentSearch) {
+                    if (this.value.trim() === '') {
+                        clearSearch();
+                    } else {
+                        clearButton.style.display = 'block';
+                    }
+                }
+            });
+
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    performSearch();
+                }
+            });
+
+            searchButton.addEventListener('click', performSearch);
+            clearButton.addEventListener('click', clearSearch);
+        }
+
+        function performSearch() {
+            const searchInput = document.getElementById('search-input');
+            const query = searchInput.value.trim();
+
+            if (query === currentSearch) return;
+
+            currentSearch = query;
+            updateTitle();
+            loadPosts(1, false);
+
+            if (query) {
+                document.getElementById('clear-search').style.display = 'block';
+            }
+        }
+
+        function clearSearch() {
+            const searchInput = document.getElementById('search-input');
+            const clearButton = document.getElementById('clear-search');
+
+            searchInput.value = '';
+            currentSearch = '';
+            clearButton.style.display = 'none';
+            updateTitle();
+            loadPosts(1, false);
+        }
+
+        function initializeCategories() {
+            // Category buttons will be populated after first API call
+        }
+
+        function populateCategories(posts) {
+            // Extract all categories from posts
+            posts.forEach(post => {
+                if (post.categories && post.categories.length > 0) {
+                    post.categories.forEach(category => {
+                        allCategories.add(category.slug);
                     });
                 }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-                alert("Sorry, there was an error submitting your subscription. Please try again or reach out directly via LinkedIn.");
-            })
-            .finally(() => {
-                // Reset button state
-                submitBtn.textContent = originalText;
-                submitBtn.disabled = false;
             });
-    }
 
-    // Share research function
-    function shareResearch(title, synopsis) {
-        if (navigator.share) {
-            navigator.share({
-                title: title,
-                text: synopsis,
-                url: window.location.href
-            }).catch(err => console.log('Error sharing:', err));
-        } else {
-            // Fallback for browsers without native sharing
-            const url = window.location.href;
-            const text = `Check out this research: ${title} - ${synopsis}`;
+            // Update category buttons
+            updateCategoryButtons();
+        }
+
+        function updateCategoryButtons() {
+            const categoryContainer = document.getElementById('category-buttons');
+            const sortedCategories = Array.from(allCategories).sort();
+
+            categoryContainer.innerHTML = sortedCategories.map(categorySlug =>
+                `<button class="category-btn" data-category="${categorySlug}">${categorySlug.replace(/-/g, ' ')}</button>`
+            ).join('');
+
+            // Add event listeners to category buttons
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const category = this.getAttribute('data-category');
+                    selectCategory(category);
+                });
+            });
+        }
+
+        function selectCategory(category) {
+            if (category === currentCategory) return;
+
+            currentCategory = category;
+
+            // Update active button
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-category') === category) {
+                    btn.classList.add('active');
+                }
+            });
+
+            updateTitle();
+            loadPosts(1, false);
+        }
+
+        function updateTitle() {
+            // Title functionality removed as per user request
+        }
+
+
+        // Enhanced display posts grid function
+        function displayPosts(posts, append = false) {
+            const postsGrid = document.getElementById('posts-grid');
             
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(`${text}\n\n${url}`).then(() => {
-                    alert('Research link copied to clipboard!');
+            if (!append) {
+                postsGrid.innerHTML = '';
+            }
+            
+            posts.forEach((post, index) => {
+                const postCard = document.createElement('article');
+                postCard.className = 'post-card fade-in-up';
+                postCard.style.animationDelay = `${index * 0.1}s`;
+                postCard.setAttribute('data-post-url', post.link);
+                postCard.innerHTML = `
+                    <div class="post-image" role="img" aria-label="Image for ${post.title}"></div>
+                    <div class="post-content">
+                        <div class="post-meta">
+                            <span class="meta-item">📅 ${formatDate(post.date)}</span>
+                            <span class="meta-item">✍️ ${post.author}</span>
+                            <span class="meta-item">📖 ${post.reading_time} min read</span>
+                        </div>
+                        <h4 class="post-title">${post.title}</h4>
+                        <p class="post-excerpt">${post.excerpt}</p>
+                        <div class="category-tags">
+                            ${post.categories.map(cat => `<span class="category-tag">${cat.name}</span>`).join('')}
+                        </div>
+                        <a href="${post.link}" class="read-more-btn" target="_blank" rel="noopener" onclick="event.stopPropagation(); trackBlogClick('${post.title}', '${post.link}')">
+                            Read More →
+                        </a>
+                    </div>
+                `;
+                
+                // Add click handler to the entire post card
+                postCard.addEventListener('click', function() {
+                    trackBlogClick(post.title, post.link);
+                    window.open(post.link, '_blank', 'noopener');
                 });
-            } else {
-                // Final fallback
-                const textArea = document.createElement('textarea');
-                textArea.value = `${text}\n\n${url}`;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                alert('Research link copied to clipboard!');
+                
+                postsGrid.appendChild(postCard);
+                
+                // Apply responsive image after DOM is added
+                const imageContainer = postCard.querySelector('.post-image');
+                createResponsiveImage(post, imageContainer, false);
+            });
+        }
+
+        // Performance optimization: Preload critical images
+        function preloadCriticalImages(posts) {
+            const criticalPosts = posts.slice(0, 3); // Preload first 3 images
+            
+            criticalPosts.forEach(post => {
+                if (post.featured_image_sizes && post.featured_image_sizes.medium_large) {
+                    const link = document.createElement('link');
+                    link.rel = 'preload';
+                    link.as = 'image';
+                    link.href = post.featured_image_sizes.medium_large;
+                    document.head.appendChild(link);
+                }
+            });
+        }
+
+        // Enhanced fallback content
+        function showFallbackContent() {
+            const postsGrid = document.getElementById('posts-grid');
+            
+            const fallbackPosts = [
+                {
+                    title: "Cross-Chain Bridge Security Analysis",
+                    excerpt: "Deep dive into security models and risk assessment across major bridge protocols.",
+                    category: "Security",
+                    readTime: "8 min read"
+                },
+                {
+                    title: "Multi-Chain Portfolio Management",
+                    excerpt: "Best practices for managing assets across multiple blockchain networks efficiently.",
+                    category: "Portfolio",
+                    readTime: "6 min read"
+                },
+                {
+                    title: "Bridge Fee Optimization Strategies",
+                    excerpt: "How to minimize costs when moving assets between different blockchain networks.",
+                    category: "Optimization",
+                    readTime: "7 min read"
+                },
+                {
+                    title: "Layer 2 Infrastructure Overview",
+                    excerpt: "Comparative analysis of Arbitrum, Optimism, and Polygon scaling solutions.",
+                    category: "Infrastructure",
+                    readTime: "9 min read"
+                },
+                {
+                    title: "Cross-Chain DeFi Opportunities",
+                    excerpt: "Exploring yield farming and liquidity provision across multiple chains.",
+                    category: "DeFi",
+                    readTime: "5 min read"
+                },
+                {
+                    title: "Bridge Transaction Monitoring",
+                    excerpt: "Tools and techniques for tracking cross-chain transaction status and success rates.",
+                    category: "Monitoring",
+                    readTime: "6 min read"
+                }
+            ];
+            
+            postsGrid.innerHTML = fallbackPosts.map(post => `
+                <article class="post-card">
+                    <div class="post-image"></div>
+                    <div class="post-content">
+                        <div class="post-meta">
+                            <span class="meta-item">📅 Recent</span>
+                            <span class="meta-item">✍️ Analysis Team</span>
+                            <span class="meta-item">📖 ${post.readTime}</span>
+                        </div>
+                        <h4 class="post-title">${post.title}</h4>
+                        <p class="post-excerpt">${post.excerpt}</p>
+                        <div class="category-tags">
+                            <span class="category-tag">${post.category}</span>
+                        </div>
+                        <a href="https://web3fuel.io/blockchain/blog/" class="read-more-btn" target="_blank" rel="noopener">Read More →</a>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        // Enhanced post loading with error handling
+        async function loadPosts(page = 1, append = false) {
+            if (isLoading) return;
+            isLoading = true;
+
+            const loadingElement = document.getElementById('loading');
+            const noResultsElement = document.getElementById('no-results');
+
+            try {
+                loadingElement.style.display = 'block';
+                noResultsElement.style.display = 'none';
+
+                // Build query parameters
+                let url = `/research/api/posts?page=${page}&per_page=6`;
+                if (currentSearch) {
+                    url += `&search=${encodeURIComponent(currentSearch)}`;
+                }
+                if (currentCategory) {
+                    url += `&category=${encodeURIComponent(currentCategory)}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                loadingElement.style.display = 'none';
+
+                if (data.success && data.posts.length > 0) {
+                    // Populate categories from first load
+                    if (page === 1 && !append) {
+                        populateCategories(data.posts);
+                    }
+
+                    // Preload critical images for better performance
+                    if (page === 1) {
+                        preloadCriticalImages(data.posts);
+                    }
+
+                    // Load all posts in grid
+                    displayPosts(data.posts, append);
+                } else if (currentSearch || currentCategory) {
+                    // Show no results message for searches/filters
+                    noResultsElement.style.display = 'block';
+                    if (!append) {
+                        document.getElementById('posts-grid').innerHTML = '';
+                    }
+                } else {
+                    // Show fallback content for general failure
+                    showFallbackContent();
+                }
+            } catch (error) {
+                console.error('Error loading posts:', error);
+                loadingElement.style.display = 'none';
+                if (currentSearch || currentCategory) {
+                    noResultsElement.style.display = 'block';
+                    if (!append) {
+                        document.getElementById('posts-grid').innerHTML = '';
+                    }
+                } else {
+                    showFallbackContent();
+                }
+            } finally {
+                isLoading = false;
             }
         }
-        
-        // Track sharing
-        if (typeof gtag !== 'undefined') {
-            gtag('event', 'research_share', {
-                'event_category': 'research',
-                'event_label': title
-            });
-        }
-    }
 
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add subtle animations to articles on load
-        const articles = document.querySelectorAll('.research-article');
-        articles.forEach((article, index) => {
-            article.style.opacity = '0';
-            article.style.transform = 'translateY(20px)';
-            setTimeout(() => {
-                article.style.transition = 'all 0.6s ease';
-                article.style.opacity = '1';
-                article.style.transform = 'translateY(0)';
-            }, index * 150);
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSearch();
+            initializeCategories();
+            loadPosts(1);
         });
-
-        // Initialize research interests dropdown
-        const interestsSelect = document.getElementById('interests');
-        if (interestsSelect) {
-            interestsSelect.addEventListener('change', function() {
-                this.style.color = this.value ? 'var(--text-color)' : 'var(--text-muted)';
-            });
-        }
-
-        // Enhance mobile touch interactions
-        if ('ontouchstart' in window) {
-            document.querySelectorAll('.action-btn').forEach(btn => {
-                btn.style.webkitTapHighlightColor = 'rgba(0,123,255,0.2)';
-            });
-        }
-    });
-
-    // Animate progress bars on scroll
-    const observerOptions = {
-        threshold: 0.5,
-        rootMargin: '0px 0px -100px 0px'
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const progressBars = entry.target.querySelectorAll('.metric-fill');
-                progressBars.forEach(bar => {
-                    const width = bar.style.width;
-                    bar.style.width = '0%';
-                    setTimeout(() => {
-                        bar.style.width = width;
-                    }, 100);
-                });
-            }
-        });
-    }, observerOptions);
-
-    // Observe the research dashboard
-    const dashboardSection = document.querySelector('.research-dashboard');
-    if (dashboardSection) {
-        observer.observe(dashboardSection);
-    }
-</script>
+    </script>
 {% endblock %}
