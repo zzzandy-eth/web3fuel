@@ -1,11 +1,15 @@
 {% extends "base.html" %}
 
+{% block loading_screen %}{% endblock %}
+
 {% block head %}
 <!-- Prefetch other pages during loading -->
 <link rel="prefetch" href="/research">
 <link rel="prefetch" href="/tools">
 <link rel="prefetch" href="/about">
 <link rel="prefetch" href="/contact">
+<!-- Preload critical images from other pages -->
+<link rel="preload" href="{{ url_for('static', filename='images/alex-profile-transparent.png') }}" as="image">
 <style>
     /* Loading Screen Styles - Inline to load immediately */
     .loading-screen {
@@ -30,8 +34,8 @@
 
     .loading-logo-container {
         position: relative;
-        width: 160px;
-        height: 160px;
+        width: 200px;
+        height: 200px;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -63,8 +67,8 @@
 
     .progress-ring {
         position: absolute;
-        width: 160px;
-        height: 160px;
+        width: 200px;
+        height: 200px;
         transform: rotate(-90deg);
     }
 
@@ -79,8 +83,8 @@
         stroke: url(#progressGradient);
         stroke-width: 3;
         stroke-linecap: round;
-        stroke-dasharray: 452;
-        stroke-dashoffset: 452;
+        stroke-dasharray: 578;
+        stroke-dashoffset: 578;
         transition: stroke-dashoffset 0.1s ease;
         filter: drop-shadow(0 0 6px rgba(0, 255, 234, 0.6));
     }
@@ -101,15 +105,15 @@
 <!-- Loading Screen -->
 <div class="loading-screen" id="loadingScreen">
     <div class="loading-logo-container" id="logoContainer">
-        <svg class="progress-ring" viewBox="0 0 160 160">
+        <svg class="progress-ring" viewBox="0 0 200 200">
             <defs>
                 <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                     <stop offset="0%" style="stop-color:#00ffea"/>
                     <stop offset="100%" style="stop-color:#ff00ff"/>
                 </linearGradient>
             </defs>
-            <circle class="progress-ring-bg" cx="80" cy="80" r="72"/>
-            <circle class="progress-ring-fill" id="progressRing" cx="80" cy="80" r="72"/>
+            <circle class="progress-ring-bg" cx="100" cy="100" r="92"/>
+            <circle class="progress-ring-fill" id="progressRing" cx="100" cy="100" r="92"/>
         </svg>
         <img src="{{ url_for('static', filename='images/web3fuel-logo.svg') }}" alt="Web3Fuel" class="loading-logo default">
         <img src="{{ url_for('static', filename='images/web3fuel-logo-neon.svg') }}" alt="Web3Fuel" class="loading-logo neon">
@@ -361,16 +365,14 @@
 
         if (!loadingScreen) return;
 
-        // Skip loading screen if user has already seen it this session
-        if (sessionStorage.getItem('loadingShown')) {
-            loadingScreen.style.display = 'none';
-            return;
-        }
-
-        const circumference = 2 * Math.PI * 72; // r=72
+        const circumference = 2 * Math.PI * 92; // r=92
+        const MIN_LOAD_TIME = 2000; // Minimum 2 seconds to allow effects to initialize
+        const startTime = Date.now();
         let currentProgress = 0;
         let targetProgress = 0;
         let animationFrame;
+        let resourcesReady = false;
+        let minTimeReached = false;
 
         function setProgress(percent) {
             const offset = circumference - (percent / 100) * circumference;
@@ -385,11 +387,13 @@
 
         function animateProgress() {
             if (currentProgress < targetProgress) {
-                currentProgress += (targetProgress - currentProgress) * 0.1;
+                currentProgress += (targetProgress - currentProgress) * 0.08;
                 if (targetProgress - currentProgress < 0.5) {
                     currentProgress = targetProgress;
                 }
                 setProgress(currentProgress);
+            }
+            if (currentProgress < 100) {
                 animationFrame = requestAnimationFrame(animateProgress);
             }
         }
@@ -401,45 +405,9 @@
             }
         }
 
-        // Simulate initial progress while resources load
-        let simulatedProgress = 0;
-        const simulateInterval = setInterval(() => {
-            if (simulatedProgress < 70) {
-                simulatedProgress += Math.random() * 8;
-                updateTarget(Math.min(simulatedProgress, 70));
-            }
-        }, 100);
+        function completeLoading() {
+            if (!resourcesReady || !minTimeReached) return;
 
-        // Track actual resource loading
-        let resourcesLoaded = 0;
-        const images = document.images;
-        const totalResources = images.length + 1; // +1 for DOM
-
-        function resourceLoaded() {
-            resourcesLoaded++;
-            const realProgress = 70 + (resourcesLoaded / totalResources) * 25;
-            updateTarget(realProgress);
-        }
-
-        // Track image loading
-        for (let img of images) {
-            if (img.complete) {
-                resourceLoaded();
-            } else {
-                img.addEventListener('load', resourceLoaded);
-                img.addEventListener('error', resourceLoaded);
-            }
-        }
-
-        // DOM Content Loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            clearInterval(simulateInterval);
-            updateTarget(85);
-        });
-
-        // Window fully loaded
-        window.addEventListener('load', () => {
-            clearInterval(simulateInterval);
             updateTarget(99);
 
             // Brief pause at 99% to show neon logo, then complete
@@ -447,10 +415,73 @@
                 updateTarget(100);
                 setTimeout(() => {
                     loadingScreen.classList.add('loaded');
-                    // Mark loading as shown for this session
-                    sessionStorage.setItem('loadingShown', 'true');
                 }, 300);
-            }, 400);
+            }, 500);
+        }
+
+        // Simulate progress based on elapsed time (slower, more realistic)
+        const simulateInterval = setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            // Progress from 0 to 70 over ~1.5 seconds, with easing
+            const timeProgress = Math.min(70, (elapsed / 1500) * 70);
+            if (targetProgress < 70) {
+                updateTarget(timeProgress);
+            }
+        }, 50);
+
+        // Wait for all images to load AND decode (ready to render)
+        function waitForImages() {
+            const images = Array.from(document.images);
+            if (images.length === 0) return Promise.resolve();
+
+            const imagePromises = images.map((img, index) => {
+                return new Promise(resolve => {
+                    if (img.complete && img.naturalHeight !== 0) {
+                        // Image loaded, now decode it
+                        if (img.decode) {
+                            img.decode().then(resolve).catch(resolve);
+                        } else {
+                            resolve();
+                        }
+                        // Update progress as images complete
+                        updateTarget(70 + ((index + 1) / images.length) * 20);
+                    } else {
+                        img.onload = () => {
+                            if (img.decode) {
+                                img.decode().then(resolve).catch(resolve);
+                            } else {
+                                resolve();
+                            }
+                            updateTarget(70 + ((index + 1) / images.length) * 20);
+                        };
+                        img.onerror = resolve;
+                    }
+                });
+            });
+
+            return Promise.all(imagePromises);
+        }
+
+        // Minimum time timer
+        setTimeout(() => {
+            minTimeReached = true;
+            completeLoading();
+        }, MIN_LOAD_TIME);
+
+        // Wait for window load + images decoded + a small buffer for effects
+        window.addEventListener('load', () => {
+            clearInterval(simulateInterval);
+            updateTarget(75);
+
+            waitForImages().then(() => {
+                updateTarget(90);
+
+                // Extra buffer for matrix canvas and CSS animations to initialize
+                setTimeout(() => {
+                    resourcesReady = true;
+                    completeLoading();
+                }, 300);
+            });
         });
     })();
 

@@ -9,9 +9,45 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/globals.css') }}">
     <!-- Umami Analytics (privacy-focused, no cookies) -->
     <script defer src="https://cloud.umami.is/script.js" data-website-id="2dbe4e28-3b5f-4c4a-8bf3-510fbf602b2e"></script>
+    <!-- Base loading screen styles (inline for immediate render) -->
+    <style>
+        .base-loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9998;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+        .base-loading-screen.loaded {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .base-loading-logo {
+            width: 80px;
+            height: 80px;
+            animation: basePulse 1.5s ease-in-out infinite;
+        }
+        @keyframes basePulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+    </style>
     {% block head %}{% endblock %}
 </head>
 <body>
+    <!-- Base loading screen (hidden on homepage which has its own) -->
+    {% block loading_screen %}
+    <div class="base-loading-screen" id="baseLoadingScreen">
+        <img src="{{ url_for('static', filename='images/web3fuel-logo.svg') }}" alt="Loading..." class="base-loading-logo">
+    </div>
+    {% endblock %}
+
     <canvas id="matrix"></canvas>
 
     {% include 'components/header.html' %}
@@ -24,6 +60,78 @@
     
     {% block scripts %}
     <script>
+        // Base Loading Screen Handler
+        (function() {
+            const baseLoadingScreen = document.getElementById('baseLoadingScreen');
+            if (!baseLoadingScreen) return;
+
+            const MIN_LOAD_TIME = 1500; // 1.5 seconds minimum to let matrix effect initialize
+            let resourcesReady = false;
+            let minTimeReached = false;
+            let matrixReady = false;
+
+            function completeLoading() {
+                if (!resourcesReady || !minTimeReached || !matrixReady) return;
+                baseLoadingScreen.classList.add('loaded');
+            }
+
+            // Wait for images to load and decode
+            function waitForImages() {
+                const images = Array.from(document.images);
+                if (images.length === 0) return Promise.resolve();
+
+                return Promise.all(images.map(img => {
+                    return new Promise(resolve => {
+                        if (img.complete && img.naturalHeight !== 0) {
+                            if (img.decode) {
+                                img.decode().then(resolve).catch(resolve);
+                            } else {
+                                resolve();
+                            }
+                        } else {
+                            img.onload = () => {
+                                if (img.decode) {
+                                    img.decode().then(resolve).catch(resolve);
+                                } else {
+                                    resolve();
+                                }
+                            };
+                            img.onerror = resolve;
+                        }
+                    });
+                }));
+            }
+
+            // Minimum time timer
+            setTimeout(() => {
+                minTimeReached = true;
+                completeLoading();
+            }, MIN_LOAD_TIME);
+
+            // Wait for matrix canvas to draw several frames
+            function waitForMatrix() {
+                const canvas = document.getElementById('matrix');
+                if (!canvas) {
+                    matrixReady = true;
+                    completeLoading();
+                    return;
+                }
+                // Wait for ~20 frames (1 second at 50ms intervals) for matrix to become visible
+                setTimeout(() => {
+                    matrixReady = true;
+                    completeLoading();
+                }, 1000);
+            }
+
+            // Wait for window load + images + matrix
+            window.addEventListener('load', () => {
+                waitForImages().then(() => {
+                    resourcesReady = true;
+                    waitForMatrix();
+                });
+            });
+        })();
+
         // Matrix Canvas Background
         const canvas = document.getElementById('matrix');
         const ctx = canvas.getContext('2d');
