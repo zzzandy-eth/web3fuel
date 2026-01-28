@@ -2322,6 +2322,45 @@ select.form-input option:hover {
     }
 }
 
+/* Extra Small Screens (under 450px) */
+@media (max-width: 450px) {
+    .hero-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0 1rem;
+    }
+
+    .stat-card {
+        transform: scale(1);
+        padding: 0.75rem 1rem;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        text-align: left;
+    }
+
+    .stat-value {
+        font-size: 1.4rem !important;
+        margin-bottom: 0;
+        order: 2;
+        flex-shrink: 0;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        order: 1;
+    }
+}
+
+/* Tiny Screens (under 350px) */
+@media (max-width: 350px) {
+    .hero-stats {
+        display: none;
+    }
+}
+
 /* Contact Page Specific Styles */
 .contact-hero {
     padding: 3rem 0 1.5rem 0;
