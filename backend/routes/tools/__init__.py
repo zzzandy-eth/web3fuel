@@ -4,8 +4,23 @@ from datetime import datetime
 # Create the blueprint for tools
 tools_bp = Blueprint('tools', __name__, url_prefix='/tools')
 
+# Import sub-blueprints
+from .polymarket_monitor import polymarket_monitor_bp
+
 # Tools data - ordered by date (newest first)
 cross_chain_tools = [
+    {
+        "title": "Polymarket Spike Monitor",
+        "emoji": "📊",
+        "description": "Automated monitoring tool for detecting unusual orderbook activity on Polymarket prediction markets. Collects data every 30 minutes, detects spikes when orderbook depth exceeds 3x baseline, and sends Discord alerts with market details. Features time-series storage in MySQL, auto-cleanup of old data, and a real-time dashboard.",
+        "why_valuable": "Detect potential insider trading signals before news breaks",
+        "technical_scope": "Polymarket API integration, MySQL time-series, Discord webhooks, cron automation",
+        "hiring_impact": "Demonstrates data pipeline engineering and anomaly detection",
+        "tags": ["Monitoring"],
+        "date": datetime(2025, 2, 4),
+        "slug": "polymarket-monitor",
+        "status": "live"
+    },
     {
         "title": "Chainlink Price Feeds",
         "emoji": "📈",
@@ -118,6 +133,10 @@ def tool(slug):
     # Crypto Prices has its own blueprint - redirect to it
     if slug == 'crypto-prices':
         return redirect(url_for('crypto_prices.index'))
+
+    # Polymarket Monitor has its own blueprint - redirect to it
+    if slug == 'polymarket-monitor':
+        return redirect(url_for('polymarket_monitor.index'))
 
     # Find the tool by slug
     tool_data = None

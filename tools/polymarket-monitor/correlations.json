@@ -1,0 +1,58 @@
+{
+  "description": "Market correlation definitions for arbitrage detection",
+  "updated": "2025-02-05T00:00:00",
+  "correlations": [
+    {
+      "name": "Trump Win vs GOP Control",
+      "enabled": true,
+      "type": "positive",
+      "threshold": 0.10,
+      "description": "Trump winning should correlate with GOP maintaining control",
+      "market_a": {
+        "keywords": ["Trump", "win", "2024"]
+      },
+      "market_b": {
+        "keywords": ["Republican", "control", "Senate"]
+      }
+    },
+    {
+      "name": "Fed Rate Cut Correlation",
+      "enabled": true,
+      "type": "positive",
+      "threshold": 0.12,
+      "description": "Multiple Fed rate cut markets should move together",
+      "market_a": {
+        "keywords": ["Fed", "rate", "cut", "March"]
+      },
+      "market_b": {
+        "keywords": ["Fed", "rate", "cut", "2025"]
+      }
+    },
+    {
+      "name": "Bitcoin Milestones",
+      "enabled": true,
+      "type": "positive",
+      "threshold": 0.15,
+      "description": "Bitcoin price milestones should correlate",
+      "market_a": {
+        "keywords": ["Bitcoin", "100"]
+      },
+      "market_b": {
+        "keywords": ["Bitcoin", "150"]
+      }
+    },
+    {
+      "name": "War vs Peace Inverse",
+      "enabled": true,
+      "type": "negative",
+      "threshold": 0.10,
+      "description": "War escalation markets vs peace deal markets should be inverse",
+      "market_a": {
+        "keywords": ["Ukraine", "war", "end"]
+      },
+      "market_b": {
+        "keywords": ["Russia", "NATO", "attack"]
+      }
+    }
+  ]
+}

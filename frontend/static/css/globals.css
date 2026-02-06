@@ -619,7 +619,7 @@ header.scrolled {
     margin: -2rem -2rem 1.5rem -2rem;
     border-radius: 0.9rem 0.9rem 0 0;
     overflow: hidden;
-    height: 160px;
+    aspect-ratio: 16 / 9;
 }
 
 .blog-card-image img {
@@ -853,6 +853,11 @@ header.scrolled {
 @media (max-width: 1250px) {
     .blog-cards-grid {
         grid-template-columns: 1fr;
+    }
+
+    .blog-card-image {
+        aspect-ratio: 21 / 9;
+        max-height: 220px;
     }
 
     .blog-card-meta {

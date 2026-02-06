@@ -33,3 +33,6 @@ bleach==6.1.0
 
 # Web3 dependencies for Chainlink price feeds
 web3>=6.0.0
+
+# News search for Polymarket AI analysis
+duckduckgo-search>=6.0.0
