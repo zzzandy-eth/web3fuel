@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 CORRELATIONS_FILE = Path(__file__).parent / 'correlations.json'
 
 # Minimum price divergence to trigger arbitrage alert (percentage points)
-# E.g., 0.10 = if markets diverge by 10+ percentage points from expected
-MIN_DIVERGENCE_THRESHOLD = 0.10
+# E.g., 0.20 = if markets diverge by 20+ percentage points from expected
+MIN_DIVERGENCE_THRESHOLD = 0.20
 
 # Hours to suppress duplicate correlation alerts
 CORRELATION_ALERT_HOURS = 12
@@ -357,7 +357,7 @@ def check_correlation_divergence(corr_config):
     # Check if divergence exceeds threshold
     threshold = corr_config.get('threshold', MIN_DIVERGENCE_THRESHOLD)
 
-    if divergence >= threshold and abs(change_a) >= 0.05:  # Only if A moved significantly
+    if divergence >= threshold and abs(change_a) >= 0.10:  # Only if A moved significantly
         return {
             'correlation_name': corr_config.get('name', 'Unnamed Correlation'),
             'correlation_type': corr_type,
@@ -424,11 +424,17 @@ def get_arbitrage_signal(corr_type, change_a, change_b):
 
 def check_duplicate_correlation_alert(correlation_name, hours=None):
     """
-    Check if we've already alerted for this correlation recently.
+    Check if we've already alerted for this correlation.
+
+    Two checks are performed:
+    1. If any previous correlation alert was successfully notified
+       (notified=TRUE), always treat as duplicate (permanent suppression).
+    2. Otherwise, check for recent alerts within the time window to prevent
+       rapid-fire alerts before notification is sent.
 
     Args:
         correlation_name: Name of the correlation
-        hours: Hours to look back (default CORRELATION_ALERT_HOURS)
+        hours: Hours to look back for non-notified duplicates (default CORRELATION_ALERT_HOURS)
 
     Returns:
         True if duplicate exists, False if new
@@ -443,7 +449,21 @@ def check_duplicate_correlation_alert(correlation_name, hours=None):
         connection = get_connection()
         cursor = connection.cursor()
 
-        # Check spike_alerts table for correlation alerts
+        # Check 1: Has a notification already been sent for this correlation?
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM spike_alerts
+            WHERE metric_type = 'correlation'
+              AND market_id = %s
+              AND notified = TRUE
+        """, (correlation_name,))
+        result = cursor.fetchone()
+
+        if result and result[0] > 0:
+            logger.debug(f"Already notified for correlation {correlation_name} - permanent suppression")
+            return True
+
+        # Check 2: Recent non-notified alert within time window (prevents rapid-fire)
         cursor.execute("""
             SELECT COUNT(*)
             FROM spike_alerts

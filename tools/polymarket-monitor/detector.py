@@ -15,7 +15,7 @@ from config import (
     BASELINE_HOURS,
     MIN_ORDERBOOK_DEPTH
 )
-from database import get_connection, insert_alert
+from database import get_connection, insert_alert, mark_alert_notified
 
 logger = logging.getLogger(__name__)
 
@@ -28,22 +28,27 @@ DUPLICATE_ALERT_HOURS = 6
 # Metrics to check for orderbook spikes
 MONITORED_METRICS = ['orderbook_bid_depth', 'orderbook_ask_depth']
 
+# Minimum signal quality score to send a Discord notification (0-100)
+# 65 = "good" quality, 80 = "excellent" quality
+# Only signals rated "good" or above will trigger notifications
+MIN_SIGNAL_QUALITY_SCORE = 65
+
 # =============================================================================
 # Price Momentum Detection Configuration
 # =============================================================================
 
 # Minimum price change (in percentage points) to trigger momentum alert
-# 0.10 = 10 percentage points (e.g., 45% -> 55% or 60% -> 50%)
-PRICE_MOMENTUM_THRESHOLD = 0.10
+# 0.20 = 20 percentage points (e.g., 40% -> 60% or 65% -> 45%)
+PRICE_MOMENTUM_THRESHOLD = 0.20
 
-# Number of snapshots for price baseline (shorter window for faster detection)
-# 6 snapshots = 3 hours at 30min intervals
-PRICE_BASELINE_SNAPSHOTS = 6
+# Number of snapshots for price baseline
+# 12 snapshots = 6 hours at 30min intervals (more robust baseline)
+PRICE_BASELINE_SNAPSHOTS = 12
 
 # Minimum baseline price to avoid alerts on very low probability markets
-# Markets with baseline price < 0.05 or > 0.95 are often noise
-MIN_BASELINE_PRICE = 0.05
-MAX_BASELINE_PRICE = 0.95
+# Markets with baseline price < 0.10 or > 0.90 are often noise
+MIN_BASELINE_PRICE = 0.10
+MAX_BASELINE_PRICE = 0.90
 
 # Price metrics (used for validation)
 PRICE_METRICS = ['yes_price']
@@ -427,12 +432,18 @@ Detected: {momentum_data.get('detected_at', datetime.now())}
 
 def check_duplicate_alert(market_id, metric, hours=None):
     """
-    Check if we've already alerted for this market/metric recently.
+    Check if we've already alerted for this market/metric.
+
+    Two checks are performed:
+    1. If any previous alert for this market/metric was successfully notified
+       (notified=TRUE), always treat as duplicate (permanent suppression).
+    2. Otherwise, check for recent alerts within the time window to prevent
+       rapid-fire alerts before notification is sent.
 
     Args:
         market_id: The market identifier
         metric: The metric type
-        hours: Hours to look back for duplicates (default DUPLICATE_ALERT_HOURS)
+        hours: Hours to look back for non-notified duplicates (default DUPLICATE_ALERT_HOURS)
 
     Returns:
         True if duplicate exists, False if this is new
@@ -447,15 +458,28 @@ def check_duplicate_alert(market_id, metric, hours=None):
         connection = get_connection()
         cursor = connection.cursor()
 
-        query = """
+        # Check 1: Has a notification already been sent for this market/metric?
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM spike_alerts
+            WHERE market_id = %s
+              AND metric_type = %s
+              AND notified = TRUE
+        """, (market_id, metric))
+        result = cursor.fetchone()
+
+        if result and result[0] > 0:
+            logger.debug(f"Already notified for {market_id}/{metric} - permanent suppression")
+            return True
+
+        # Check 2: Recent non-notified alert within time window (prevents rapid-fire)
+        cursor.execute("""
             SELECT COUNT(*)
             FROM spike_alerts
             WHERE market_id = %s
               AND metric_type = %s
               AND detected_at > NOW() - INTERVAL %s HOUR
-        """
-
-        cursor.execute(query, (market_id, metric, hours))
+        """, (market_id, metric, hours))
         result = cursor.fetchone()
 
         return result[0] > 0 if result else False
@@ -739,17 +763,22 @@ def detect_all_spikes(threshold=None, price_threshold=None):
                 except Exception as analysis_error:
                     logger.error(f"Failed to generate AI analysis: {analysis_error}")
 
-                # Send Discord notification (with extra duplicate check to prevent race conditions)
-                try:
-                    from notifier import send_discord_notification
-                    if check_recent_alert_exists(market_id, metric, minutes=5):
-                        logger.debug(f"Skipping Discord notification - recent alert exists for {market_id}/{metric}")
-                    elif send_discord_notification(spike):
-                        logger.info(f"Discord alert sent for {market_id}/{metric}")
-                    else:
-                        logger.debug(f"Discord notification skipped or failed for {market_id}")
-                except Exception as notif_error:
-                    logger.error(f"Failed to send Discord notification: {notif_error}")
+                # Send Discord notification only for high-quality signals
+                signal_score = spike.get('signal_quality', {}).get('score', 0)
+                if signal_score < MIN_SIGNAL_QUALITY_SCORE:
+                    logger.info(f"Signal quality too low ({signal_score}) for {market_id}/{metric} - skipping Discord notification")
+                else:
+                    try:
+                        from notifier import send_discord_notification
+                        if check_recent_alert_exists(market_id, metric, minutes=5):
+                            logger.debug(f"Skipping Discord notification - recent alert exists for {market_id}/{metric}")
+                        elif send_discord_notification(spike):
+                            logger.info(f"Discord alert sent for {market_id}/{metric} (quality: {signal_score})")
+                            mark_alert_notified(alert_id)
+                        else:
+                            logger.debug(f"Discord notification skipped or failed for {market_id}")
+                    except Exception as notif_error:
+                        logger.error(f"Failed to send Discord notification: {notif_error}")
 
             # =================================================================
             # Check price momentum
@@ -823,17 +852,22 @@ def detect_all_spikes(threshold=None, price_threshold=None):
                         except Exception as analysis_error:
                             logger.error(f"Failed to generate AI analysis: {analysis_error}")
 
-                        # Send Discord notification
-                        try:
-                            from notifier import send_discord_notification
-                            if check_recent_alert_exists(market_id, metric, minutes=5):
-                                logger.debug(f"Skipping Discord notification - recent alert exists for {market_id}/{metric}")
-                            elif send_discord_notification(momentum):
-                                logger.info(f"Discord alert sent for {market_id}/{metric}")
-                            else:
-                                logger.debug(f"Discord notification skipped or failed for {market_id}")
-                        except Exception as notif_error:
-                            logger.error(f"Failed to send Discord notification: {notif_error}")
+                        # Send Discord notification only for high-quality signals
+                        signal_score = momentum.get('signal_quality', {}).get('score', 0)
+                        if signal_score < MIN_SIGNAL_QUALITY_SCORE:
+                            logger.info(f"Signal quality too low ({signal_score}) for {market_id}/{metric} - skipping Discord notification")
+                        else:
+                            try:
+                                from notifier import send_discord_notification
+                                if check_recent_alert_exists(market_id, metric, minutes=5):
+                                    logger.debug(f"Skipping Discord notification - recent alert exists for {market_id}/{metric}")
+                                elif send_discord_notification(momentum):
+                                    logger.info(f"Discord alert sent for {market_id}/{metric} (quality: {signal_score})")
+                                    mark_alert_notified(alert_id)
+                                else:
+                                    logger.debug(f"Discord notification skipped or failed for {market_id}")
+                            except Exception as notif_error:
+                                logger.error(f"Failed to send Discord notification: {notif_error}")
 
         except Exception as e:
             logger.error(f"Error processing market {market_id}: {e}")
@@ -888,6 +922,8 @@ def detect_correlations():
             try:
                 if send_correlation_notification(div):
                     logger.info(f"Correlation alert sent: {div['correlation_name']}")
+                    if div.get('alert_id'):
+                        mark_alert_notified(div['alert_id'])
             except Exception as e:
                 logger.error(f"Failed to send correlation notification: {e}")
 

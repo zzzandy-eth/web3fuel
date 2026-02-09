@@ -98,6 +98,7 @@ def parse_markets_from_events(events):
 
     for event in events:
         event_id = event.get("id")
+        event_slug = event.get("slug", "")
         category = event.get("category")
 
         # Each event can have multiple markets
@@ -136,7 +137,7 @@ def parse_markets_from_events(events):
                 "market_id": str(market_id),  # Ensure string for DB
                 "event_id": str(event_id) if event_id else None,
                 "question": market.get("question"),
-                "slug": market.get("slug"),
+                "slug": event_slug,
                 "outcomes": json.dumps(outcomes),
                 "clob_token_ids": json.dumps(clob_token_ids),
                 "category": category,

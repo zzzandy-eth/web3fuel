@@ -250,6 +250,42 @@ def insert_alert(alert_data):
             connection.close()
 
 
+def mark_alert_notified(alert_id):
+    """
+    Mark a spike alert as notified (Discord notification sent successfully).
+
+    Args:
+        alert_id: The alert ID to mark as notified
+
+    Returns:
+        True if updated successfully, False otherwise
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute(
+            "UPDATE spike_alerts SET notified = TRUE WHERE id = %s",
+            (alert_id,)
+        )
+
+        connection.commit()
+        logger.debug(f"Marked alert {alert_id} as notified")
+        return cursor.rowcount > 0
+
+    except Error as e:
+        logger.error(f"Error marking alert {alert_id} as notified: {e}")
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
 def get_market_by_id(market_id):
     """Retrieve a market record by its ID."""
     connection = None
