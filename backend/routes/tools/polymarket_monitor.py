@@ -16,24 +16,29 @@ logger = logging.getLogger(__name__)
 
 polymarket_monitor_bp = Blueprint('polymarket_monitor', __name__, url_prefix='/tools/polymarket-monitor')
 
-# Load polymarket monitor .env as fallback if DB vars aren't in main env
-if not os.getenv('DB_HOST'):
-    try:
-        from dotenv import load_dotenv
-        tool_env = Path(__file__).resolve().parents[3] / 'tools' / 'polymarket-monitor' / '.env'
-        if tool_env.exists():
-            load_dotenv(tool_env, override=False)
-            logger.info(f"Polymarket Monitor: Loaded DB config from {tool_env}")
-    except Exception as e:
-        logger.warning(f"Polymarket Monitor: Could not load tool .env: {e}")
+# Load polymarket monitor .env directly for DB config
+# The main app .env has different DB credentials, so we read the tool's own .env
+_pm_env = {}
+try:
+    tool_env = Path(__file__).resolve().parents[3] / 'tools' / 'polymarket-monitor' / '.env'
+    if tool_env.exists():
+        with open(tool_env) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, _, value = line.partition('=')
+                    _pm_env[key.strip()] = value.strip()
+        logger.info(f"Polymarket Monitor: Loaded DB config from {tool_env}")
+except Exception as e:
+    logger.warning(f"Polymarket Monitor: Could not load tool .env: {e}")
 
-# Database configuration
+# Database configuration - uses polymarket tool's own credentials
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'database': os.getenv('DB_NAME', 'polymarket_monitor'),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', ''),
-    'port': int(os.getenv('DB_PORT', 3306))
+    'host': _pm_env.get('DB_HOST', 'localhost'),
+    'database': _pm_env.get('DB_NAME', 'polymarket_monitor'),
+    'user': _pm_env.get('DB_USER', 'root'),
+    'password': _pm_env.get('DB_PASSWORD', ''),
+    'port': int(_pm_env.get('DB_PORT', '3306'))
 }
 
 # Initialize database connection pool
