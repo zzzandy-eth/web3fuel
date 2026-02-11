@@ -62,13 +62,13 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
 # =============================================================================
 
 # Minimum spike ratio to trigger alert (e.g., 5.0 = 5x baseline)
-SPIKE_THRESHOLD_RATIO = float(os.getenv("SPIKE_THRESHOLD_RATIO", "5.0"))
+SPIKE_THRESHOLD_RATIO = float(os.getenv("SPIKE_THRESHOLD_RATIO", "4.0"))
 
 # Hours of historical data to use for baseline calculation
 BASELINE_HOURS = int(os.getenv("BASELINE_HOURS", "24"))
 
 # Minimum orderbook depth to consider (filter out low-liquidity markets)
-MIN_ORDERBOOK_DEPTH = float(os.getenv("MIN_ORDERBOOK_DEPTH", "2000.0"))
+MIN_ORDERBOOK_DEPTH = float(os.getenv("MIN_ORDERBOOK_DEPTH", "1000.0"))
 
 # =============================================================================
 # Data Retention / Cleanup

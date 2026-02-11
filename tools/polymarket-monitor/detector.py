@@ -31,7 +31,7 @@ MONITORED_METRICS = ['orderbook_bid_depth', 'orderbook_ask_depth']
 # Minimum signal quality score to send a Discord notification (0-100)
 # 65 = "good" quality, 80 = "excellent" quality
 # Only signals rated "good" or above will trigger notifications
-MIN_SIGNAL_QUALITY_SCORE = 65
+MIN_SIGNAL_QUALITY_SCORE = 50
 
 # =============================================================================
 # Price Momentum Detection Configuration
@@ -39,7 +39,7 @@ MIN_SIGNAL_QUALITY_SCORE = 65
 
 # Minimum price change (in percentage points) to trigger momentum alert
 # 0.20 = 20 percentage points (e.g., 40% -> 60% or 65% -> 45%)
-PRICE_MOMENTUM_THRESHOLD = 0.20
+PRICE_MOMENTUM_THRESHOLD = 0.15
 
 # Number of snapshots for price baseline
 # 12 snapshots = 6 hours at 30min intervals (more robust baseline)
@@ -47,8 +47,8 @@ PRICE_BASELINE_SNAPSHOTS = 12
 
 # Minimum baseline price to avoid alerts on very low probability markets
 # Markets with baseline price < 0.10 or > 0.90 are often noise
-MIN_BASELINE_PRICE = 0.10
-MAX_BASELINE_PRICE = 0.90
+MIN_BASELINE_PRICE = 0.08
+MAX_BASELINE_PRICE = 0.92
 
 # Price metrics (used for validation)
 PRICE_METRICS = ['yes_price']
