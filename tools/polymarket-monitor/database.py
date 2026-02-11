@@ -3,6 +3,7 @@ Database module for Polymarket Monitor.
 Handles MySQL connection and schema management.
 """
 
+import json
 import mysql.connector
 from mysql.connector import Error
 import logging
@@ -54,6 +55,7 @@ def init_database():
                 outcomes TEXT,
                 clob_token_ids TEXT,
                 category VARCHAR(100),
+                end_date DATETIME NULL,
                 active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -62,6 +64,14 @@ def init_database():
                 INDEX idx_category (category)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
+
+        # Add end_date column if missing (for existing installs)
+        try:
+            cursor.execute("""
+                ALTER TABLE markets ADD COLUMN end_date DATETIME NULL AFTER category
+            """)
+        except Error:
+            pass  # Column already exists
 
         # Create market_snapshots table (time-series data)
         cursor.execute("""
@@ -97,6 +107,32 @@ def init_database():
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
+        # Create ai_predictions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ai_predictions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                market_id VARCHAR(255) NOT NULL,
+                predicted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                suggested_play VARCHAR(20),
+                grade VARCHAR(5),
+                reasoning TEXT,
+                key_signal VARCHAR(100),
+                signals_json TEXT,
+                market_price_at_prediction DECIMAL(5,4),
+                market_end_date DATETIME NULL,
+                resolved BOOLEAN DEFAULT FALSE,
+                actual_outcome VARCHAR(10) NULL,
+                prediction_correct BOOLEAN NULL,
+                resolved_at TIMESTAMP NULL,
+                alert_ids TEXT,
+                FOREIGN KEY (market_id) REFERENCES markets(market_id) ON DELETE CASCADE,
+                INDEX idx_market_id (market_id),
+                INDEX idx_predicted_at (predicted_at),
+                INDEX idx_resolved (resolved),
+                INDEX idx_grade (grade)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
         connection.commit()
         logger.info("Database schema initialized successfully")
 
@@ -127,8 +163,8 @@ def upsert_market(market_data):
 
         query = """
             INSERT INTO markets (market_id, event_id, question, slug, outcomes,
-                                 clob_token_ids, category, active)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                 clob_token_ids, category, end_date, active)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 event_id = VALUES(event_id),
                 question = VALUES(question),
@@ -136,6 +172,7 @@ def upsert_market(market_data):
                 outcomes = VALUES(outcomes),
                 clob_token_ids = VALUES(clob_token_ids),
                 category = VALUES(category),
+                end_date = COALESCE(VALUES(end_date), end_date),
                 active = VALUES(active),
                 updated_at = CURRENT_TIMESTAMP
         """
@@ -148,6 +185,7 @@ def upsert_market(market_data):
             market_data.get('outcomes'),  # JSON string
             market_data.get('clob_token_ids'),  # JSON string
             market_data.get('category'),
+            market_data.get('end_date'),
             market_data.get('active', True)
         ))
 
@@ -339,6 +377,191 @@ def get_recent_snapshots(market_id, hours=24):
     except Error as e:
         logger.error(f"Error fetching snapshots for {market_id}: {e}")
         raise
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def insert_prediction(prediction_data):
+    """
+    Insert an AI prediction record.
+
+    Args:
+        prediction_data: dict with keys: market_id, suggested_play, grade,
+                        reasoning, key_signal, signals_json,
+                        market_price_at_prediction, market_end_date, alert_ids
+
+    Returns:
+        prediction_id or None on failure
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        query = """
+            INSERT INTO ai_predictions (market_id, suggested_play, grade,
+                                        reasoning, key_signal, signals_json,
+                                        market_price_at_prediction, market_end_date,
+                                        alert_ids)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+
+        signals_json = prediction_data.get('signals_json')
+        if isinstance(signals_json, (dict, list)):
+            signals_json = json.dumps(signals_json)
+
+        cursor.execute(query, (
+            prediction_data['market_id'],
+            prediction_data.get('suggested_play'),
+            prediction_data.get('grade'),
+            prediction_data.get('reasoning'),
+            prediction_data.get('key_signal'),
+            signals_json,
+            prediction_data.get('market_price_at_prediction'),
+            prediction_data.get('market_end_date'),
+            prediction_data.get('alert_ids')
+        ))
+
+        connection.commit()
+        prediction_id = cursor.lastrowid
+        logger.info(f"Inserted prediction {prediction_id} for market: {prediction_data['market_id']}")
+        return prediction_id
+
+    except Error as e:
+        logger.error(f"Error inserting prediction for {prediction_data.get('market_id')}: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def get_accuracy_by_grade(days=90):
+    """
+    Get prediction accuracy grouped by grade.
+
+    Args:
+        days: Number of days to look back
+
+    Returns:
+        Dict of grade -> {total, correct, accuracy}
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT grade,
+                   COUNT(*) as total,
+                   SUM(CASE WHEN prediction_correct = TRUE THEN 1 ELSE 0 END) as correct
+            FROM ai_predictions
+            WHERE resolved = TRUE
+              AND predicted_at >= NOW() - INTERVAL %s DAY
+            GROUP BY grade
+        """, (days,))
+
+        results = {}
+        for row in cursor.fetchall():
+            grade = row['grade']
+            total = row['total']
+            correct = row['correct'] or 0
+            results[grade] = {
+                'total': total,
+                'correct': correct,
+                'accuracy': round(correct / total * 100, 1) if total > 0 else 0
+            }
+
+        return results
+
+    except Error as e:
+        logger.error(f"Error getting accuracy by grade: {e}")
+        return {}
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def get_unresolved_predictions():
+    """
+    Get predictions that haven't been resolved yet and whose market end date has passed.
+
+    Returns:
+        List of prediction dicts
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT p.*, m.question, m.slug
+            FROM ai_predictions p
+            LEFT JOIN markets m ON p.market_id = m.market_id
+            WHERE p.resolved = FALSE
+              AND p.market_end_date IS NOT NULL
+              AND p.market_end_date <= NOW()
+        """)
+
+        return cursor.fetchall()
+
+    except Error as e:
+        logger.error(f"Error getting unresolved predictions: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def resolve_prediction(prediction_id, outcome, correct):
+    """
+    Mark a prediction as resolved with the actual outcome.
+
+    Args:
+        prediction_id: The prediction ID
+        outcome: 'YES' or 'NO'
+        correct: Boolean whether prediction was correct
+
+    Returns:
+        True if updated successfully
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            UPDATE ai_predictions
+            SET resolved = TRUE,
+                actual_outcome = %s,
+                prediction_correct = %s,
+                resolved_at = NOW()
+            WHERE id = %s
+        """, (outcome, correct, prediction_id))
+
+        connection.commit()
+        logger.info(f"Resolved prediction {prediction_id}: outcome={outcome}, correct={correct}")
+        return cursor.rowcount > 0
+
+    except Error as e:
+        logger.error(f"Error resolving prediction {prediction_id}: {e}")
+        return False
     finally:
         if cursor:
             cursor.close()

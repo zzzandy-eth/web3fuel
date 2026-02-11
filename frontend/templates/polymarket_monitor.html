@@ -200,6 +200,10 @@
         background: rgba(155, 89, 182, 0.2);
         color: #9b59b6;
     }
+    .metric-badge.whale {
+        background: rgba(142, 68, 173, 0.2);
+        color: #8e44ad;
+    }
 
     /* Pattern Stats */
     .pattern-grid {
@@ -530,6 +534,7 @@
     .legend-dot.momentum-up { background: var(--primary); }
     .legend-dot.momentum-down { background: var(--secondary); }
     .legend-dot.correlation { background: #9b59b6; }
+    .legend-dot.whale { background: #8e44ad; }
 
     /* Filter Buttons */
     .filter-buttons {
@@ -691,6 +696,13 @@
                 <div class="summary-label">Arbitrage</div>
             </div>
         </div>
+        <div class="summary-item">
+            <div class="summary-icon">🐋</div>
+            <div class="summary-info">
+                <div class="summary-count" id="today-whale">-</div>
+                <div class="summary-label">Whale</div>
+            </div>
+        </div>
     </div>
 
     <!-- Alert Type Legend -->
@@ -714,6 +726,10 @@
         <div class="legend-item">
             <span class="legend-dot correlation"></span>
             <span>Arbitrage (Correlation divergence)</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-dot whale"></span>
+            <span>Whale (Contrarian bet)</span>
         </div>
     </div>
 
@@ -744,6 +760,7 @@
                 <button class="filter-btn" data-filter="orderbook_ask_depth">Ask <span class="count" id="filter-count-ask">0</span></button>
                 <button class="filter-btn" data-filter="price_momentum">Momentum <span class="count" id="filter-count-momentum">0</span></button>
                 <button class="filter-btn" data-filter="correlation">Arbitrage <span class="count" id="filter-count-correlation">0</span></button>
+                <button class="filter-btn" data-filter="contrarian_whale">Whale <span class="count" id="filter-count-whale">0</span></button>
             </div>
             <div id="spikes-table">
                 <div class="loading">
@@ -821,11 +838,12 @@
                 </div>
             </div>
             <div class="footer-section">
-                <h4>Links</h4>
+                <h4>Guide</h4>
+                <p>
+                    Learn how this tool works, what the signals mean, and how to use them for trading decisions.
+                </p>
                 <ul>
-                    <li><a href="https://polymarket.com" target="_blank">Polymarket</a></li>
-                    <li><a href="/tools">All Tools</a></li>
-                    <li><a href="/contact">Contact</a></li>
+                    <li><a href="https://web3fuel.io/article/polymarket-activity-monitor/" target="_blank">Read the Full Guide</a></li>
                 </ul>
             </div>
         </div>
@@ -949,13 +967,15 @@
             bid: todaySpikes.filter(s => s.metric_type === 'orderbook_bid_depth').length,
             ask: todaySpikes.filter(s => s.metric_type === 'orderbook_ask_depth').length,
             momentum: todaySpikes.filter(s => s.metric_type === 'price_momentum').length,
-            correlation: todaySpikes.filter(s => s.metric_type === 'correlation').length
+            correlation: todaySpikes.filter(s => s.metric_type === 'correlation').length,
+            whale: todaySpikes.filter(s => s.metric_type === 'contrarian_whale').length
         };
 
         document.getElementById('today-bid').textContent = counts.bid;
         document.getElementById('today-ask').textContent = counts.ask;
         document.getElementById('today-momentum').textContent = counts.momentum;
         document.getElementById('today-correlation').textContent = counts.correlation;
+        document.getElementById('today-whale').textContent = counts.whale;
     }
 
     // Update filter button counts
@@ -965,6 +985,7 @@
         document.getElementById('filter-count-ask').textContent = spikes.filter(s => s.metric_type === 'orderbook_ask_depth').length;
         document.getElementById('filter-count-momentum').textContent = spikes.filter(s => s.metric_type === 'price_momentum').length;
         document.getElementById('filter-count-correlation').textContent = spikes.filter(s => s.metric_type === 'correlation').length;
+        document.getElementById('filter-count-whale').textContent = spikes.filter(s => s.metric_type === 'contrarian_whale').length;
     }
 
     // Render spikes table with filter
@@ -1004,7 +1025,13 @@
             // Determine metric type and formatting
             let metricClass, metricLabel, ratioDisplay, baselineDisplay, currentDisplay;
 
-            if (spike.metric_type === 'correlation') {
+            if (spike.metric_type === 'contrarian_whale') {
+                metricClass = 'whale';
+                metricLabel = '🐋 WHALE';
+                ratioDisplay = `${spike.spike_ratio.toFixed(1)}x`;
+                baselineDisplay = `${(spike.baseline_value * 100).toFixed(1)}%`;
+                currentDisplay = `${(spike.current_value * 100).toFixed(1)}%`;
+            } else if (spike.metric_type === 'correlation') {
                 metricClass = 'correlation';
                 metricLabel = '🔗 ARB';
                 ratioDisplay = `${(spike.spike_ratio * 100).toFixed(1)}pp`;

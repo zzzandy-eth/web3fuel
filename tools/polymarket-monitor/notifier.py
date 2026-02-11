@@ -15,11 +15,12 @@ from config import DISCORD_WEBHOOK_URL, REQUEST_TIMEOUT
 logger = logging.getLogger(__name__)
 
 # Discord embed color codes
-COLOR_ALERT_RED = 16711680      # #FF0000 - for spikes/alerts
-COLOR_WARNING_ORANGE = 16744448  # #FF8C00 - for warnings
+COLOR_ALERT_RED = 16711680      # #FF0000 - for spikes/alerts (A+ grade)
+COLOR_WARNING_ORANGE = 16744448  # #FF8C00 - for warnings (A grade)
 COLOR_SUCCESS_GREEN = 65280      # #00FF00 - for success/test
-COLOR_INFO_BLUE = 3447003        # #3498DB - for info
+COLOR_INFO_BLUE = 3447003        # #3498DB - for info (B+ grade)
 COLOR_PURPLE = 10181046          # #9B59B6 - for correlation/arbitrage
+COLOR_GREY = 9807270             # #95A5A6 - for B/C grades
 
 # Simple in-memory deduplication cache to prevent double-sends
 # Key: "market_id:metric_type", Value: timestamp
@@ -85,7 +86,8 @@ def format_metric_name(metric):
         'orderbook_ask_depth': 'Ask Depth',
         'yes_price': 'Yes Price',
         'no_price': 'No Price',
-        'price_momentum': 'Price Momentum'
+        'price_momentum': 'Price Momentum',
+        'contrarian_whale': 'Contrarian Whale'
     }
     return mapping.get(metric, metric)
 
@@ -217,6 +219,238 @@ def format_indicators_text(spike_data):
     return None
 
 
+def _grade_color(grade):
+    """Return Discord embed color for an AI grade."""
+    colors = {
+        'A+': COLOR_ALERT_RED,
+        'A': COLOR_WARNING_ORANGE,
+        'B+': COLOR_INFO_BLUE,
+        'B': COLOR_GREY,
+        'C': COLOR_GREY,
+    }
+    return colors.get(grade, COLOR_INFO_BLUE)
+
+
+def _grade_label(grade):
+    """Return human-readable label for a grade."""
+    labels = {
+        'A+': 'High Conviction',
+        'A': 'Strong Setup',
+        'B+': 'Moderate-High',
+        'B': 'Moderate',
+        'C': 'Speculative',
+    }
+    return labels.get(grade, 'Unknown')
+
+
+def _signal_icon(sig_type):
+    """Return emoji for a signal type."""
+    icons = {
+        'orderbook_bid_depth': '\U0001f7e2',  # green circle
+        'orderbook_ask_depth': '\U0001f534',   # red circle
+        'price_momentum': '\U0001f4c8',        # chart increasing
+        'contrarian_whale': '\U0001f40b',      # whale
+    }
+    return icons.get(sig_type, '\U0001f4ca')
+
+
+def create_unified_embed(unified_alert):
+    """
+    Create a Discord embed for a unified alert with AI trade suggestion.
+
+    Args:
+        unified_alert: Dict with keys: question, market_id, slug, yes_price, no_price,
+                      end_date, signals (list), ai_suggestion (dict with play/grade/reasoning/key_signal),
+                      signal_quality (dict), detected_at
+
+    Returns:
+        Dict formatted as Discord embed
+    """
+    question = unified_alert.get('question', 'Unknown Market')
+    slug = unified_alert.get('slug', '')
+    yes_price = unified_alert.get('yes_price')
+    no_price = unified_alert.get('no_price')
+    end_date = unified_alert.get('end_date')
+    signals = unified_alert.get('signals', [])
+    ai = unified_alert.get('ai_suggestion') or {}
+    signal_quality = unified_alert.get('signal_quality', {})
+    detected_at = unified_alert.get('detected_at', datetime.now())
+
+    grade = ai.get('grade', 'C')
+    play = ai.get('play', 'NO TRADE')
+    reasoning = ai.get('reasoning', '')
+    key_signal = ai.get('key_signal', '')
+
+    market_url = f"https://polymarket.com/event/{slug}" if slug else "https://polymarket.com"
+
+    # Timestamp
+    if isinstance(detected_at, datetime):
+        timestamp_iso = detected_at.replace(tzinfo=timezone.utc).isoformat()
+        timestamp_display = detected_at.strftime("%Y-%m-%d %H:%M UTC")
+    else:
+        timestamp_iso = datetime.now(timezone.utc).isoformat()
+        timestamp_display = str(detected_at)
+
+    # Color by grade
+    color = _grade_color(grade)
+
+    # Title
+    title = f"\U0001f3af POLYMARKET SIGNAL: {grade} Setup"
+
+    # Build signal list text with tree formatting
+    signal_count = len(signals)
+    signal_lines = []
+    for i, sig in enumerate(signals):
+        connector = "\u2514\u2500" if i == signal_count - 1 else "\u251c\u2500"
+        icon = _signal_icon(sig.get('type', ''))
+        sig_type = sig.get('type', 'unknown')
+
+        if sig_type in ('orderbook_bid_depth', 'orderbook_ask_depth'):
+            side = 'Bid' if 'bid' in sig_type else 'Ask'
+            line = (f"{connector} {icon} {side} Spike: {sig.get('ratio', 0):.1f}x baseline "
+                    f"(${sig.get('baseline', 0):,.0f} \u2192 ${sig.get('current', 0):,.0f})")
+        elif sig_type == 'price_momentum':
+            direction = sig.get('direction', 'up')
+            change = sig.get('ratio', 0) * 100
+            line = (f"{connector} {icon} Price Momentum: "
+                    f"{'+' if direction == 'up' else '-'}{change:.1f}pp "
+                    f"({sig.get('baseline', 0)*100:.1f}% \u2192 {sig.get('current', 0)*100:.1f}%)")
+        elif sig_type == 'contrarian_whale':
+            side = sig.get('contrarian_side', '?')
+            line = f"{connector} {icon} Contrarian Whale: {sig.get('ratio', 0):.1f}x influx on {side}"
+        else:
+            line = f"{connector} {icon} {sig_type}: {sig.get('ratio', 0):.1f}x"
+
+        signal_lines.append(line)
+
+    signals_text = "\n".join(signal_lines) if signal_lines else "No specific signals"
+
+    # Format end date
+    end_date_text = "Unknown"
+    days_remaining = ""
+    if end_date:
+        try:
+            if hasattr(end_date, 'strftime'):
+                end_date_text = end_date.strftime("%b %d, %Y")
+                remaining = (end_date - datetime.now()).days
+                if remaining > 0:
+                    days_remaining = f" ({remaining} days)"
+                elif remaining == 0:
+                    days_remaining = " (Today!)"
+            else:
+                end_date_text = str(end_date)
+        except Exception:
+            end_date_text = str(end_date) if end_date else "Unknown"
+
+    # Format prices
+    yes_pct = f"{yes_price*100:.1f}%" if yes_price is not None else "N/A"
+
+    # Signal quality
+    quality_score = signal_quality.get('score', 0) if signal_quality else 0
+    quality_rating = signal_quality.get('rating', 'unknown') if signal_quality else 'unknown'
+
+    # AI suggestion text
+    ai_text = f"**{play}** ({grade} {_grade_label(grade)})\n{reasoning}" if reasoning else f"**{play}** ({grade})"
+
+    # Build fields
+    fields = [
+        {
+            "name": "\U0001f916 AI Suggestion",
+            "value": ai_text[:1024],
+            "inline": False
+        },
+        {
+            "name": f"\U0001f4ca Detected Signals ({signal_count})",
+            "value": signals_text[:1024],
+            "inline": False
+        },
+        {
+            "name": "\u23f0 Market Ends",
+            "value": f"{end_date_text}{days_remaining}",
+            "inline": True
+        },
+        {
+            "name": "\U0001f4c8 Current",
+            "value": f"{yes_pct} YES",
+            "inline": True
+        },
+        {
+            "name": "\U0001f3af Signal Quality",
+            "value": f"{quality_score:.0f}/100 ({quality_rating.title()})",
+            "inline": True
+        },
+        {
+            "name": "\U0001f517 View on Polymarket",
+            "value": f"[Open Market]({market_url})",
+            "inline": True
+        }
+    ]
+
+    embed = {
+        "title": title,
+        "description": f"**{question}**",
+        "color": color,
+        "url": market_url,
+        "fields": fields,
+        "footer": {
+            "text": f"Polymarket Monitor \u2022 {grade} Grade \u2022 {timestamp_display}"
+        },
+        "timestamp": timestamp_iso
+    }
+
+    return embed
+
+
+def send_unified_notification(unified_alert):
+    """
+    Send a unified alert to Discord.
+
+    Args:
+        unified_alert: Dict with unified alert data
+
+    Returns:
+        True if sent successfully, False otherwise
+    """
+    if not DISCORD_WEBHOOK_URL:
+        logger.warning("Discord webhook URL not configured - skipping notification")
+        return False
+
+    market_id = unified_alert.get('market_id', '')
+    if _check_and_update_dedup_cache(market_id, 'unified'):
+        logger.info(f"Duplicate unified notification suppressed for {market_id}")
+        return True
+
+    try:
+        embed = create_unified_embed(unified_alert)
+        payload = {"embeds": [embed]}
+
+        response = requests.post(
+            DISCORD_WEBHOOK_URL,
+            json=payload,
+            timeout=REQUEST_TIMEOUT
+        )
+
+        if response.status_code == 204:
+            logger.info(f"Unified Discord notification sent for market: {market_id}")
+            return True
+        elif response.status_code == 429:
+            logger.warning(f"Discord rate limited. Retry after: {response.headers.get('Retry-After', 'unknown')}s")
+            return False
+        else:
+            logger.error(f"Discord webhook failed: {response.status_code} - {response.text}")
+            return False
+
+    except requests.exceptions.Timeout:
+        logger.error("Discord webhook timed out")
+        return False
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Discord webhook error: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Unexpected error sending unified notification: {e}")
+        return False
+
+
 def create_spike_embed(spike_data):
     """
     Create a Discord embed object for a spike alert.
@@ -262,10 +496,115 @@ def create_spike_embed(spike_data):
     confidence_accuracy, confidence_samples = get_pattern_confidence(metric)
     confidence_text = format_confidence_text(confidence_accuracy, confidence_samples)
 
+    # Check if this is a contrarian whale alert
+    is_contrarian = metric == 'contrarian_whale'
     # Check if this is a price momentum alert
     is_momentum = metric == 'price_momentum'
 
-    if is_momentum:
+    if is_contrarian:
+        # Contrarian whale alert formatting
+        contrarian_side = spike_data.get('contrarian_side', '?')
+        influx_ratio = spike_data.get('influx_ratio', spike_ratio)
+        prior_ratio = spike_data.get('prior_ratio', 0)
+        dominant_side = spike_data.get('dominant_side', '?')
+        dominance_flipped = spike_data.get('dominance_flipped', False)
+        baseline_bid = spike_data.get('baseline_bid', 0)
+        baseline_ask = spike_data.get('baseline_ask', 0)
+        current_bid = spike_data.get('current_bid', 0)
+        current_ask = spike_data.get('current_ask', 0)
+        baseline_price_val = spike_data.get('baseline_price', baseline)
+        current_price_val = spike_data.get('current_price', current)
+        price_shift = spike_data.get('price_shift', 0)
+        timeframe = spike_data.get('timeframe_hours', 2.5)
+
+        bl_pct = (baseline_price_val or 0) * 100
+        cur_pct = (current_price_val or 0) * 100
+        shift_pp = (price_shift or 0) * 100
+
+        if dominance_flipped:
+            title = "CONTRARIAN WHALE: Market Flipped!"
+            color = COLOR_ALERT_RED
+        else:
+            title = "Contrarian Whale Activity Detected"
+            color = COLOR_WARNING_ORANGE
+
+        status_text = "FLIPPED majority" if dominance_flipped else "growing"
+        prior_dominant_label = "BID(YES)" if dominant_side == 'bid' else "ASK(NO)"
+
+        embed = {
+            "title": title,
+            "description": f"**{question}**",
+            "color": color,
+            "url": market_url,
+            "fields": [
+                {
+                    "name": "Contrarian Side",
+                    "value": f"**{contrarian_side}** ({status_text})",
+                    "inline": True
+                },
+                {
+                    "name": "Influx Ratio",
+                    "value": f"**{influx_ratio:.1f}x** on {contrarian_side}",
+                    "inline": True
+                },
+                {
+                    "name": "Prior Balance",
+                    "value": f"Bid(YES) ${baseline_bid:,.0f} / Ask(NO) ${baseline_ask:,.0f}\n({prior_ratio:.1f}:1 favoring {prior_dominant_label})",
+                    "inline": False
+                },
+                {
+                    "name": "Current Balance",
+                    "value": f"Bid(YES) ${current_bid:,.0f} / Ask(NO) ${current_ask:,.0f}",
+                    "inline": False
+                },
+                {
+                    "name": "Price Impact",
+                    "value": f"{bl_pct:.1f}% -> **{cur_pct:.1f}%** ({'+' if shift_pp > 0 else ''}{shift_pp:.1f}pp)",
+                    "inline": True
+                },
+                {
+                    "name": "Timeframe",
+                    "value": f"{timeframe:.1f} hours",
+                    "inline": True
+                },
+                {
+                    "name": "Market Link",
+                    "value": f"[View on Polymarket]({market_url})",
+                    "inline": True
+                }
+            ],
+            "footer": {
+                "text": f"Polymarket Monitor \u2022 Contrarian Whale \u2022 {timestamp_display}"
+            },
+            "timestamp": timestamp_iso
+        }
+
+        # Add signal quality score
+        signal_quality_text = format_signal_quality(signal_quality)
+        if signal_quality_text:
+            embed["fields"].insert(0, {
+                "name": "Signal Quality",
+                "value": signal_quality_text,
+                "inline": True
+            })
+
+        # Add confidence score if available
+        if confidence_text:
+            embed["fields"].insert(1, {
+                "name": "Historical Accuracy",
+                "value": confidence_text,
+                "inline": True
+            })
+
+        # Add AI analysis if available
+        if ai_analysis:
+            embed["fields"].append({
+                "name": "AI Analysis",
+                "value": ai_analysis[:1024],
+                "inline": False
+            })
+
+    elif is_momentum:
         # Price momentum alert formatting
         change_pct = spike_ratio * 100  # spike_ratio holds the price change for momentum
         baseline_pct = baseline * 100 if baseline else 0
@@ -937,7 +1276,8 @@ def send_daily_digest():
                 'orderbook_bid_depth': '💰 Bid',
                 'orderbook_ask_depth': '📉 Ask',
                 'price_momentum': '📈 Momentum',
-                'correlation': '🔗 Arbitrage'
+                'correlation': '🔗 Arbitrage',
+                'contrarian_whale': '🐋 Whale'
             }
 
             breakdown_text = ""

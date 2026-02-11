@@ -8,6 +8,7 @@ import json
 import time
 import logging
 from datetime import datetime
+from dateutil import parser as dateutil_parser
 
 from config import (
     GAMMA_API_BASE,
@@ -133,6 +134,15 @@ def parse_markets_from_events(events):
                 except (ValueError, TypeError):
                     pass
 
+            # Extract end date from market or event level
+            end_date = None
+            end_date_raw = market.get("endDate") or market.get("end_date_iso") or event.get("endDate")
+            if end_date_raw:
+                try:
+                    end_date = dateutil_parser.parse(end_date_raw)
+                except (ValueError, TypeError):
+                    logger.debug(f"Could not parse end_date: {end_date_raw}")
+
             market_data = {
                 "market_id": str(market_id),  # Ensure string for DB
                 "event_id": str(event_id) if event_id else None,
@@ -141,6 +151,7 @@ def parse_markets_from_events(events):
                 "outcomes": json.dumps(outcomes),
                 "clob_token_ids": json.dumps(clob_token_ids),
                 "category": category,
+                "end_date": end_date,
                 "active": market.get("active", True),
                 "yes_price": yes_price,
                 "no_price": no_price,

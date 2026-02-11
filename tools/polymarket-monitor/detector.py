@@ -13,9 +13,13 @@ from mysql.connector import Error
 from config import (
     SPIKE_THRESHOLD_RATIO,
     BASELINE_HOURS,
-    MIN_ORDERBOOK_DEPTH
+    MIN_ORDERBOOK_DEPTH,
+    CONTRARIAN_INFLUX_THRESHOLD,
+    CONTRARIAN_MIN_PRIOR_RATIO,
+    CONTRARIAN_BASELINE_SNAPSHOTS,
+    CONTRARIAN_MIN_PRICE_SHIFT
 )
-from database import get_connection, insert_alert, mark_alert_notified
+from database import get_connection, insert_alert, mark_alert_notified, insert_prediction
 
 logger = logging.getLogger(__name__)
 
@@ -658,9 +662,284 @@ Detected: {spike.get('detected_at', datetime.now())}
     return output
 
 
+def detect_contrarian_whale(market_id):
+    """
+    Detect contrarian whale activity: large bets placed against the previous majority.
+    Compares the most recent snapshot against a baseline window to find sudden
+    influx on the minority side with price confirmation.
+
+    Args:
+        market_id: The market identifier
+
+    Returns:
+        Dict with contrarian whale details if detected, or None
+    """
+    connection = None
+    cursor = None
+    num_snapshots = CONTRARIAN_BASELINE_SNAPSHOTS + 1  # baseline + current
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # Get last N+1 snapshots (current + baseline window)
+        cursor.execute("""
+            SELECT orderbook_bid_depth, orderbook_ask_depth, yes_price, timestamp
+            FROM market_snapshots
+            WHERE market_id = %s
+              AND orderbook_bid_depth IS NOT NULL
+              AND orderbook_ask_depth IS NOT NULL
+              AND yes_price IS NOT NULL
+            ORDER BY timestamp DESC
+            LIMIT %s
+        """, (market_id, num_snapshots))
+
+        rows = cursor.fetchall()
+
+        if len(rows) < num_snapshots:
+            return None
+
+        # Current snapshot is first row; baseline is the rest
+        current = rows[0]
+        baseline_rows = rows[1:]
+
+        current_bid = float(current['orderbook_bid_depth'])
+        current_ask = float(current['orderbook_ask_depth'])
+        current_price = float(current['yes_price'])
+
+        # Calculate baseline averages
+        avg_bid = sum(float(r['orderbook_bid_depth']) for r in baseline_rows) / len(baseline_rows)
+        avg_ask = sum(float(r['orderbook_ask_depth']) for r in baseline_rows) / len(baseline_rows)
+        avg_price = sum(float(r['yes_price']) for r in baseline_rows) / len(baseline_rows)
+
+        # Skip low-liquidity markets
+        if max(current_bid, current_ask) < MIN_ORDERBOOK_DEPTH:
+            return None
+
+        # Determine which side was dominant in the baseline
+        if avg_bid == 0 or avg_ask == 0:
+            return None
+
+        if avg_bid >= avg_ask:
+            dominant_side = 'bid'
+            prior_ratio = avg_bid / avg_ask
+            minority_baseline = avg_ask
+            minority_current = current_ask
+            contrarian_side = 'NO'
+        else:
+            dominant_side = 'ask'
+            prior_ratio = avg_ask / avg_bid
+            minority_baseline = avg_bid
+            minority_current = current_bid
+            contrarian_side = 'YES'
+
+        # Check 1: Market must have been at least CONTRARIAN_MIN_PRIOR_RATIO dominant
+        if prior_ratio < CONTRARIAN_MIN_PRIOR_RATIO:
+            return None
+
+        # Check 2: Minority side must have grown by CONTRARIAN_INFLUX_THRESHOLD
+        if minority_baseline <= 0:
+            return None
+        influx_ratio = minority_current / minority_baseline
+        if influx_ratio < CONTRARIAN_INFLUX_THRESHOLD:
+            return None
+
+        # Check 3: Price must confirm the contrarian move
+        price_shift = current_price - avg_price
+        if contrarian_side == 'YES':
+            # Contrarian is YES, so price should go up
+            if price_shift < CONTRARIAN_MIN_PRICE_SHIFT:
+                return None
+        else:
+            # Contrarian is NO, so price should go down
+            if price_shift > -CONTRARIAN_MIN_PRICE_SHIFT:
+                return None
+
+        # Check if dominance actually flipped
+        if contrarian_side == 'YES':
+            dominance_flipped = current_bid > current_ask
+        else:
+            dominance_flipped = current_ask > current_bid
+
+        timeframe_hours = len(baseline_rows) * 0.5  # 30min intervals
+
+        result = {
+            'contrarian_side': contrarian_side,
+            'influx_ratio': influx_ratio,
+            'prior_ratio': prior_ratio,
+            'dominant_side': dominant_side,
+            'dominance_flipped': dominance_flipped,
+            'baseline_bid': avg_bid,
+            'baseline_ask': avg_ask,
+            'current_bid': current_bid,
+            'current_ask': current_ask,
+            'baseline_price': avg_price,
+            'current_price': current_price,
+            'price_shift': price_shift,
+            'timeframe_hours': timeframe_hours
+        }
+
+        logger.info(
+            f"Contrarian whale detected for {market_id}: "
+            f"{contrarian_side} side, {influx_ratio:.1f}x influx, "
+            f"price {avg_price:.1%} -> {current_price:.1%}, "
+            f"{'FLIPPED' if dominance_flipped else 'growing'}"
+        )
+
+        return result
+
+    except Error as e:
+        logger.error(f"Error detecting contrarian whale for {market_id}: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def format_contrarian_output(whale_data):
+    """
+    Format a contrarian whale alert for console output.
+
+    Args:
+        whale_data: Dict with contrarian whale details
+
+    Returns:
+        Formatted string
+    """
+    side = whale_data.get('contrarian_side', '?')
+    flipped = whale_data.get('dominance_flipped', False)
+    influx = whale_data.get('influx_ratio', 0)
+    prior_ratio = whale_data.get('prior_ratio', 0)
+    dominant = whale_data.get('dominant_side', '?')
+    bl_bid = whale_data.get('baseline_bid', 0)
+    bl_ask = whale_data.get('baseline_ask', 0)
+    cur_bid = whale_data.get('current_bid', 0)
+    cur_ask = whale_data.get('current_ask', 0)
+    bl_price = (whale_data.get('baseline_price', 0) or 0) * 100
+    cur_price = (whale_data.get('current_price', 0) or 0) * 100
+    shift = (whale_data.get('price_shift', 0) or 0) * 100
+    hours = whale_data.get('timeframe_hours', 0)
+
+    status = "FLIPPED majority" if flipped else "growing"
+
+    output = f"""
+================================================================================
+CONTRARIAN WHALE {'MARKET FLIPPED' if flipped else 'ACTIVITY DETECTED'}
+================================================================================
+Market: {whale_data.get('question', 'Unknown')}
+Contrarian Side: {side} ({status})
+Influx Ratio: {influx:.1f}x on {side}
+Prior Balance: Bid(YES) ${bl_bid:,.0f} / Ask(NO) ${bl_ask:,.0f} ({prior_ratio:.1f}:1 favoring {dominant.upper()})
+Current Balance: Bid(YES) ${cur_bid:,.0f} / Ask(NO) ${cur_ask:,.0f}
+Price Impact: {bl_price:.1f}% -> {cur_price:.1f}% ({'+' if shift > 0 else ''}{shift:.1f}pp)
+Timeframe: {hours:.1f} hours
+URL: https://polymarket.com/event/{whale_data.get('slug', '')}
+Detected: {whale_data.get('detected_at', datetime.now())}
+================================================================================
+"""
+    return output
+
+
+def check_duplicate_market_alert(market_id):
+    """
+    Check if ANY signal type has already been notified for this market.
+    Used for unified alerts where we send one notification per market.
+
+    Args:
+        market_id: The market identifier
+
+    Returns:
+        True if any signal for this market was already notified
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*)
+            FROM spike_alerts
+            WHERE market_id = %s
+              AND notified = TRUE
+        """, (market_id,))
+        result = cursor.fetchone()
+
+        if result and result[0] > 0:
+            logger.debug(f"Already notified for market {market_id} - permanent suppression")
+            return True
+
+        return False
+
+    except Error as e:
+        logger.error(f"Error checking market duplicate: {e}")
+        return True
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def format_unified_output(unified_alert):
+    """
+    Format a unified alert for console output.
+
+    Args:
+        unified_alert: Dict with unified alert data
+
+    Returns:
+        Formatted string
+    """
+    question = unified_alert.get('question', 'Unknown')
+    signals = unified_alert.get('signals', [])
+    ai = unified_alert.get('ai_suggestion') or {}
+    yes_price = unified_alert.get('yes_price')
+    slug = unified_alert.get('slug', '')
+
+    grade = ai.get('grade', '?')
+    play = ai.get('play', 'NO TRADE')
+    reasoning = ai.get('reasoning', '')
+
+    signal_lines = []
+    for sig in signals:
+        sig_type = sig.get('type', 'unknown')
+        if sig_type in ('orderbook_bid_depth', 'orderbook_ask_depth'):
+            side = 'Bid' if 'bid' in sig_type else 'Ask'
+            signal_lines.append(f"  - {side} Spike: {sig.get('ratio', 0):.1f}x (${sig.get('baseline', 0):,.0f} -> ${sig.get('current', 0):,.0f})")
+        elif sig_type == 'price_momentum':
+            direction = sig.get('direction', 'up')
+            change = sig.get('ratio', 0) * 100
+            signal_lines.append(f"  - Price Momentum: {'+' if direction == 'up' else '-'}{change:.1f}pp")
+        elif sig_type == 'contrarian_whale':
+            signal_lines.append(f"  - Contrarian Whale: {sig.get('ratio', 0):.1f}x on {sig.get('contrarian_side', '?')}")
+
+    signals_text = "\n".join(signal_lines)
+    yes_pct = f"{yes_price*100:.1f}%" if yes_price else "N/A"
+
+    output = f"""
+================================================================================
+UNIFIED ALERT: {grade} Grade | {play}
+================================================================================
+Market: {question}
+Current: {yes_pct} YES
+Signals ({len(signals)}):
+{signals_text}
+AI: {reasoning[:200]}
+URL: https://polymarket.com/event/{slug}
+Detected: {unified_alert.get('detected_at', datetime.now())}
+================================================================================
+"""
+    return output
+
+
 def detect_all_spikes(threshold=None, price_threshold=None):
     """
     Main function to detect spikes and price momentum across all eligible markets.
+    Uses a two-pass approach: collect signals first, then process per market.
 
     Args:
         threshold: Override orderbook spike threshold (default from config)
@@ -676,7 +955,6 @@ def detect_all_spikes(threshold=None, price_threshold=None):
 
     logger.info(f"Starting detection (orderbook: {threshold}x, price momentum: {price_threshold:.0%})...")
 
-    # Get markets with sufficient history
     market_ids = get_markets_with_sufficient_history()
 
     if not market_ids:
@@ -685,200 +963,227 @@ def detect_all_spikes(threshold=None, price_threshold=None):
 
     logger.info(f"Checking {len(market_ids)} markets for spikes and momentum...")
 
-    spikes = []
+    # =====================================================================
+    # PASS 1: Collect all raw signals per market
+    # =====================================================================
+    market_signals = {}  # market_id -> list of signal dicts
 
     for market_id in market_ids:
         try:
-            # =================================================================
             # Check orderbook depth spikes
-            # =================================================================
             for metric in MONITORED_METRICS:
                 is_spike, spike_ratio, baseline, current = detect_spike(
                     market_id, metric, threshold
                 )
+                if is_spike:
+                    if market_id not in market_signals:
+                        market_signals[market_id] = []
+                    market_signals[market_id].append({
+                        'type': metric,
+                        'ratio': spike_ratio,
+                        'baseline': baseline,
+                        'current': current,
+                        'direction': 'bid' if 'bid' in metric else 'ask',
+                    })
 
-                if not is_spike:
-                    continue
-
-                # Check for duplicate alert
-                if check_duplicate_alert(market_id, metric):
-                    logger.debug(f"Skipping duplicate alert for {market_id}/{metric}")
-                    continue
-
-                # Log to database
-                alert_id = log_spike(market_id, metric, spike_ratio, baseline, current)
-
-                if not alert_id:
-                    continue
-
-                # Get market details
-                market = get_market_details(market_id)
-
-                # Build spike object
-                spike = {
-                    'alert_id': alert_id,
-                    'market_id': market_id,
-                    'question': market.get('question', 'Unknown') if market else 'Unknown',
-                    'metric_type': metric,
-                    'spike_ratio': spike_ratio,
-                    'baseline_value': baseline,
-                    'current_value': current,
-                    'yes_price': market.get('yes_price') if market else None,
-                    'no_price': market.get('no_price') if market else None,
-                    'slug': market.get('slug', '') if market else '',
-                    'detected_at': datetime.now()
-                }
-
-                spikes.append(spike)
-
-                # Print to console
-                print(format_spike_output(spike))
-
-                # Calculate statistical indicators
-                try:
-                    from indicators import calculate_signal_quality, calculate_imbalance, analyze_zscore
-                    signal_quality = calculate_signal_quality(market_id, spike)
-                    spike['signal_quality'] = signal_quality
-
-                    # Add specific indicators
-                    imbalance = calculate_imbalance(market_id)
-                    if imbalance.get('ratio'):
-                        spike['imbalance'] = imbalance
-
-                    zscore = analyze_zscore(market_id, metric, current)
-                    if zscore.get('zscore'):
-                        spike['zscore'] = zscore
-
-                    logger.debug(f"Indicators calculated for {market_id}/{metric}: score={signal_quality.get('score')}")
-                except Exception as ind_error:
-                    logger.debug(f"Could not calculate indicators: {ind_error}")
-
-                # Generate AI analysis (if configured)
-                try:
-                    from analyzer import analyze_spike
-                    ai_analysis = analyze_spike(spike)
-                    if ai_analysis:
-                        spike['ai_analysis'] = ai_analysis
-                        logger.info(f"AI analysis generated for {market_id}/{metric}")
-                except Exception as analysis_error:
-                    logger.error(f"Failed to generate AI analysis: {analysis_error}")
-
-                # Send Discord notification only for high-quality signals
-                signal_score = spike.get('signal_quality', {}).get('score', 0)
-                if signal_score < MIN_SIGNAL_QUALITY_SCORE:
-                    logger.info(f"Signal quality too low ({signal_score}) for {market_id}/{metric} - skipping Discord notification")
-                else:
-                    try:
-                        from notifier import send_discord_notification
-                        if check_recent_alert_exists(market_id, metric, minutes=5):
-                            logger.debug(f"Skipping Discord notification - recent alert exists for {market_id}/{metric}")
-                        elif send_discord_notification(spike):
-                            logger.info(f"Discord alert sent for {market_id}/{metric} (quality: {signal_score})")
-                            mark_alert_notified(alert_id)
-                        else:
-                            logger.debug(f"Discord notification skipped or failed for {market_id}")
-                    except Exception as notif_error:
-                        logger.error(f"Failed to send Discord notification: {notif_error}")
-
-            # =================================================================
             # Check price momentum
-            # =================================================================
             is_momentum, price_change, direction, baseline_price, current_price = detect_price_momentum(
                 market_id, price_threshold
             )
-
             if is_momentum:
-                metric = 'price_momentum'
+                if market_id not in market_signals:
+                    market_signals[market_id] = []
+                market_signals[market_id].append({
+                    'type': 'price_momentum',
+                    'ratio': price_change,
+                    'baseline': baseline_price,
+                    'current': current_price,
+                    'direction': direction,
+                })
 
-                # Check for duplicate alert
-                if check_duplicate_alert(market_id, metric):
-                    logger.debug(f"Skipping duplicate alert for {market_id}/{metric}")
-                else:
-                    # Log to database (store price_change as spike_ratio for consistency)
-                    alert_id = log_spike(market_id, metric, price_change, baseline_price, current_price)
-
-                    if alert_id:
-                        # Get market details
-                        market = get_market_details(market_id)
-
-                        # Build momentum object
-                        momentum = {
-                            'alert_id': alert_id,
-                            'market_id': market_id,
-                            'question': market.get('question', 'Unknown') if market else 'Unknown',
-                            'metric_type': metric,
-                            'spike_ratio': price_change,  # Reusing field for consistency
-                            'direction': direction,
-                            'baseline_value': baseline_price,
-                            'current_value': current_price,
-                            'yes_price': current_price,
-                            'no_price': 1 - current_price if current_price else None,
-                            'slug': market.get('slug', '') if market else '',
-                            'detected_at': datetime.now()
-                        }
-
-                        spikes.append(momentum)
-
-                        # Print to console
-                        print(format_momentum_output(momentum))
-
-                        # Calculate statistical indicators
-                        try:
-                            from indicators import calculate_signal_quality, calculate_rsi, calculate_bollinger_bands
-                            signal_quality = calculate_signal_quality(market_id, momentum)
-                            momentum['signal_quality'] = signal_quality
-
-                            # Add RSI for momentum signals
-                            rsi = calculate_rsi(market_id)
-                            if rsi.get('rsi'):
-                                momentum['rsi'] = rsi
-
-                            # Add Bollinger Bands
-                            bb = calculate_bollinger_bands(market_id)
-                            if bb.get('position'):
-                                momentum['bollinger'] = bb
-
-                            logger.debug(f"Indicators calculated for {market_id}/{metric}: score={signal_quality.get('score')}")
-                        except Exception as ind_error:
-                            logger.debug(f"Could not calculate indicators: {ind_error}")
-
-                        # Generate AI analysis (if configured)
-                        try:
-                            from analyzer import analyze_spike
-                            ai_analysis = analyze_spike(momentum)
-                            if ai_analysis:
-                                momentum['ai_analysis'] = ai_analysis
-                                logger.info(f"AI analysis generated for {market_id}/{metric}")
-                        except Exception as analysis_error:
-                            logger.error(f"Failed to generate AI analysis: {analysis_error}")
-
-                        # Send Discord notification only for high-quality signals
-                        signal_score = momentum.get('signal_quality', {}).get('score', 0)
-                        if signal_score < MIN_SIGNAL_QUALITY_SCORE:
-                            logger.info(f"Signal quality too low ({signal_score}) for {market_id}/{metric} - skipping Discord notification")
-                        else:
-                            try:
-                                from notifier import send_discord_notification
-                                if check_recent_alert_exists(market_id, metric, minutes=5):
-                                    logger.debug(f"Skipping Discord notification - recent alert exists for {market_id}/{metric}")
-                                elif send_discord_notification(momentum):
-                                    logger.info(f"Discord alert sent for {market_id}/{metric} (quality: {signal_score})")
-                                    mark_alert_notified(alert_id)
-                                else:
-                                    logger.debug(f"Discord notification skipped or failed for {market_id}")
-                            except Exception as notif_error:
-                                logger.error(f"Failed to send Discord notification: {notif_error}")
+            # Check contrarian whale activity
+            contrarian = detect_contrarian_whale(market_id)
+            if contrarian:
+                if market_id not in market_signals:
+                    market_signals[market_id] = []
+                market_signals[market_id].append({
+                    'type': 'contrarian_whale',
+                    'ratio': contrarian['influx_ratio'],
+                    'baseline': contrarian['baseline_price'],
+                    'current': contrarian['current_price'],
+                    'direction': contrarian['contrarian_side'],
+                    'contrarian_side': contrarian['contrarian_side'],
+                    'dominance_flipped': contrarian.get('dominance_flipped', False),
+                })
 
         except Exception as e:
-            logger.error(f"Error processing market {market_id}: {e}")
+            logger.error(f"Error collecting signals for market {market_id}: {e}")
             continue
 
-    if spikes:
-        logger.info(f"Detected {len(spikes)} alert(s) (orderbook + momentum)")
+    if not market_signals:
+        logger.info("No spikes or momentum detected")
+        return []
+
+    logger.info(f"Pass 1 complete: {sum(len(v) for v in market_signals.values())} signals across {len(market_signals)} markets")
+
+    # =====================================================================
+    # PASS 2: Process each market with signals
+    # =====================================================================
+    all_spikes = []
+
+    for market_id, signals in market_signals.items():
+        try:
+            # Check dedup per market (has ANY signal been notified?)
+            if check_duplicate_market_alert(market_id):
+                logger.debug(f"Skipping duplicate unified alert for market {market_id}")
+                continue
+
+            # Also check per-signal dedup to avoid re-logging
+            new_signals = []
+            for sig in signals:
+                if not check_duplicate_alert(market_id, sig['type']):
+                    new_signals.append(sig)
+                else:
+                    logger.debug(f"Skipping duplicate signal {market_id}/{sig['type']}")
+
+            if not new_signals:
+                logger.debug(f"All signals for {market_id} are duplicates")
+                continue
+
+            # Get market details
+            market = get_market_details(market_id)
+            if not market:
+                logger.warning(f"Could not get market details for {market_id}")
+                continue
+
+            question = market.get('question', 'Unknown')
+            yes_price = market.get('yes_price')
+            no_price = market.get('no_price')
+            slug = market.get('slug', '')
+            end_date = market.get('end_date')
+
+            # Log each individual signal to spike_alerts (preserves granular data)
+            alert_ids = []
+            for sig in new_signals:
+                alert_id = log_spike(market_id, sig['type'], sig['ratio'], sig['baseline'], sig['current'])
+                if alert_id:
+                    alert_ids.append(alert_id)
+                    # Build individual spike object for the return list
+                    spike_obj = {
+                        'alert_id': alert_id,
+                        'market_id': market_id,
+                        'question': question,
+                        'metric_type': sig['type'],
+                        'spike_ratio': sig['ratio'],
+                        'baseline_value': sig['baseline'],
+                        'current_value': sig['current'],
+                        'yes_price': yes_price,
+                        'no_price': no_price,
+                        'slug': slug,
+                        'detected_at': datetime.now(),
+                        'direction': sig.get('direction'),
+                    }
+                    if sig['type'] == 'contrarian_whale':
+                        spike_obj['contrarian_side'] = sig.get('contrarian_side')
+                        spike_obj['dominance_flipped'] = sig.get('dominance_flipped', False)
+                    all_spikes.append(spike_obj)
+
+            if not alert_ids:
+                continue
+
+            # Calculate signal quality (use highest score among signals)
+            best_signal_quality = {}
+            for spike_obj in all_spikes:
+                if spike_obj.get('market_id') == market_id and spike_obj.get('alert_id') in alert_ids:
+                    try:
+                        from indicators import calculate_signal_quality
+                        sq = calculate_signal_quality(market_id, spike_obj)
+                        if sq.get('score', 0) > best_signal_quality.get('score', 0):
+                            best_signal_quality = sq
+                    except Exception:
+                        pass
+
+            # Build unified alert object
+            unified_alert = {
+                'market_id': market_id,
+                'question': question,
+                'yes_price': yes_price,
+                'no_price': no_price,
+                'slug': slug,
+                'end_date': end_date,
+                'signals': new_signals,
+                'signal_quality': best_signal_quality,
+                'alert_ids': alert_ids,
+                'detected_at': datetime.now(),
+            }
+
+            # Call enhanced AI analysis
+            try:
+                from analyzer import analyze_unified_signal, search_news, extract_search_keywords
+                search_query = extract_search_keywords(question)
+                news_results = search_news(search_query)
+                ai_result = analyze_unified_signal(unified_alert, news_results)
+                if ai_result:
+                    unified_alert['ai_suggestion'] = ai_result
+                    logger.info(f"AI unified analysis: {market_id} -> {ai_result.get('grade')} {ai_result.get('play')}")
+            except Exception as ai_error:
+                logger.error(f"Failed to generate unified AI analysis: {ai_error}")
+
+            # Log AI prediction to ai_predictions table
+            ai = unified_alert.get('ai_suggestion')
+            if ai and ai.get('play') != 'NO TRADE':
+                try:
+                    import json as _json
+                    prediction_data = {
+                        'market_id': market_id,
+                        'suggested_play': ai.get('play'),
+                        'grade': ai.get('grade'),
+                        'reasoning': ai.get('reasoning'),
+                        'key_signal': ai.get('key_signal'),
+                        'signals_json': _json.dumps([{
+                            'type': s['type'],
+                            'ratio': s['ratio'],
+                            'direction': s.get('direction')
+                        } for s in new_signals]),
+                        'market_price_at_prediction': yes_price,
+                        'market_end_date': end_date,
+                        'alert_ids': ','.join(str(a) for a in alert_ids),
+                    }
+                    pred_id = insert_prediction(prediction_data)
+                    if pred_id:
+                        logger.info(f"Logged prediction {pred_id} for {market_id}")
+                except Exception as pred_error:
+                    logger.error(f"Failed to log prediction: {pred_error}")
+
+            # Print unified console output
+            print(format_unified_output(unified_alert))
+
+            # Send ONE unified Discord notification
+            signal_score = best_signal_quality.get('score', 0)
+            if signal_score < MIN_SIGNAL_QUALITY_SCORE:
+                logger.info(f"Signal quality too low ({signal_score}) for {market_id} - skipping Discord notification")
+            else:
+                try:
+                    from notifier import send_unified_notification
+                    if send_unified_notification(unified_alert):
+                        logger.info(f"Unified Discord alert sent for {market_id} (quality: {signal_score})")
+                        for aid in alert_ids:
+                            mark_alert_notified(aid)
+                    else:
+                        logger.debug(f"Unified Discord notification skipped or failed for {market_id}")
+                except Exception as notif_error:
+                    logger.error(f"Failed to send unified notification: {notif_error}")
+
+        except Exception as e:
+            logger.error(f"Error processing unified alert for market {market_id}: {e}")
+            continue
+
+    if all_spikes:
+        logger.info(f"Detected {len(all_spikes)} alert(s) across {len(market_signals)} markets (unified)")
     else:
         logger.info("No spikes or momentum detected")
 
-    return spikes
+    return all_spikes
 
 
 def detect_correlations():
@@ -1048,6 +1353,13 @@ if __name__ == "__main__":
             else:
                 print("[FAIL] Could not send daily digest")
 
+        elif command == 'resolve':
+            # Run resolution checker for AI predictions
+            from resolver import check_resolutions
+            print("Checking AI prediction resolutions...")
+            resolved_count = check_resolutions()
+            print(f"[OK] Resolved {resolved_count} prediction(s)")
+
         elif command == 'help':
             print("""
 Polymarket Monitor - Spike Detection
@@ -1060,13 +1372,15 @@ Usage:
   python detector.py patterns 60  Run pattern analysis (60 days)
   python detector.py patterns 30 --discord  Send pattern report to Discord
   python detector.py digest       Send daily digest to Discord
+  python detector.py resolve      Check AI prediction resolutions
 
 Scheduled Commands (for cron):
   # Every 30 minutes - run detection
   */30 * * * * cd /path && python detector.py
 
-  # Daily at 9am - send digest
+  # Daily at 9am - send digest + resolve predictions
   0 9 * * * cd /path && python detector.py digest
+  0 9 * * * cd /path && python detector.py resolve
 
   # Weekly Sunday - send pattern report
   0 10 * * 0 cd /path && python detector.py patterns 7 --discord
@@ -1075,6 +1389,7 @@ Examples:
   python detector.py patterns 30 --discord
   python detector.py digest
   python detector.py spikes
+  python detector.py resolve
             """)
         else:
             print(f"Unknown command: {command}")

@@ -71,6 +71,22 @@ BASELINE_HOURS = int(os.getenv("BASELINE_HOURS", "24"))
 MIN_ORDERBOOK_DEPTH = float(os.getenv("MIN_ORDERBOOK_DEPTH", "1000.0"))
 
 # =============================================================================
+# Contrarian Whale Detection Configuration
+# =============================================================================
+
+# Minimum influx ratio for minority side (e.g., 3.0 = minority side must triple)
+CONTRARIAN_INFLUX_THRESHOLD = float(os.getenv("CONTRARIAN_INFLUX_THRESHOLD", "3.0"))
+
+# Minimum prior dominance ratio (e.g., 1.5 = market must have been at least 60/40)
+CONTRARIAN_MIN_PRIOR_RATIO = float(os.getenv("CONTRARIAN_MIN_PRIOR_RATIO", "1.5"))
+
+# Number of snapshots for baseline window (5 snapshots = 2.5 hours at 30min intervals)
+CONTRARIAN_BASELINE_SNAPSHOTS = int(os.getenv("CONTRARIAN_BASELINE_SNAPSHOTS", "5"))
+
+# Minimum price shift in contrarian direction (0.05 = 5 percentage points)
+CONTRARIAN_MIN_PRICE_SHIFT = float(os.getenv("CONTRARIAN_MIN_PRICE_SHIFT", "0.05"))
+
+# =============================================================================
 # Data Retention / Cleanup
 # =============================================================================
 

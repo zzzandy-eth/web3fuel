@@ -396,6 +396,16 @@ def api_patterns():
                          (SELECT yes_price FROM market_snapshots ms2
                           WHERE ms2.market_id = sa.market_id
                           ORDER BY timestamp DESC LIMIT 1) < 0.5 THEN 1
+                    WHEN metric_type = 'contrarian_whale' AND
+                         sa.current_value > sa.baseline_value AND
+                         (SELECT yes_price FROM market_snapshots ms2
+                          WHERE ms2.market_id = sa.market_id
+                          ORDER BY timestamp DESC LIMIT 1) > 0.5 THEN 1
+                    WHEN metric_type = 'contrarian_whale' AND
+                         sa.current_value < sa.baseline_value AND
+                         (SELECT yes_price FROM market_snapshots ms2
+                          WHERE ms2.market_id = sa.market_id
+                          ORDER BY timestamp DESC LIMIT 1) < 0.5 THEN 1
                     ELSE 0
                 END) as correct
             FROM spike_alerts sa

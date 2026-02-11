@@ -3,6 +3,7 @@ AI Context Analysis module for Polymarket Monitor.
 Uses Claude API to analyze spike causes with news context.
 """
 
+import json
 import logging
 import os
 import re
@@ -285,7 +286,185 @@ Do NOT include disclaimers about speculation or uncertainty - just give your bes
 
 
 # =============================================================================
-# Main Analysis Function
+# Unified Signal Analysis (Trade Suggestions + Grades)
+# =============================================================================
+
+def get_past_accuracy_stats():
+    """
+    Get past prediction accuracy stats grouped by grade for prompt context.
+
+    Returns:
+        Formatted string for inclusion in AI prompt, or empty string
+    """
+    try:
+        from database import get_accuracy_by_grade
+        stats = get_accuracy_by_grade(days=90)
+
+        if not stats:
+            return "No past predictions resolved yet."
+
+        lines = []
+        for grade in ['A+', 'A', 'B+', 'B', 'C']:
+            if grade in stats:
+                s = stats[grade]
+                lines.append(f"  - {grade} calls: {s['correct']}/{s['total']} correct ({s['accuracy']}%)")
+
+        return "\n".join(lines) if lines else "No past predictions resolved yet."
+
+    except Exception as e:
+        logger.debug(f"Could not get accuracy stats: {e}")
+        return "No past predictions resolved yet."
+
+
+def analyze_unified_signal(unified_alert, news_context=None):
+    """
+    Analyze all signals for a market and generate a trade suggestion with grade.
+
+    Args:
+        unified_alert: Dict with keys: question, yes_price, no_price, end_date,
+                      signals (list of signal dicts), slug, market_id
+        news_context: Optional list of news articles
+
+    Returns:
+        Dict with keys: play, grade, reasoning, key_signal, raw_analysis
+        Or None on failure
+    """
+    if not CLAUDE_API_KEY:
+        logger.debug("AI analysis disabled (no API key)")
+        return None
+
+    market_question = unified_alert.get('question', '')
+    if not market_question or market_question == 'Unknown':
+        return None
+
+    try:
+        client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
+
+        yes_price = unified_alert.get('yes_price')
+        no_price = unified_alert.get('no_price')
+        end_date = unified_alert.get('end_date')
+        signals = unified_alert.get('signals', [])
+
+        # Format signal descriptions
+        signal_lines = []
+        for sig in signals:
+            sig_type = sig.get('type', 'unknown')
+            if sig_type in ('orderbook_bid_depth', 'orderbook_ask_depth'):
+                side = 'Bid' if 'bid' in sig_type else 'Ask'
+                signal_lines.append(
+                    f"- {side} Spike: {sig.get('ratio', 0):.1f}x baseline "
+                    f"(${sig.get('baseline', 0):,.0f} -> ${sig.get('current', 0):,.0f})"
+                )
+            elif sig_type == 'price_momentum':
+                direction = sig.get('direction', 'up')
+                change = sig.get('ratio', 0) * 100
+                signal_lines.append(
+                    f"- Price Momentum: {'+' if direction == 'up' else '-'}{change:.1f}pp "
+                    f"({sig.get('baseline', 0)*100:.1f}% -> {sig.get('current', 0)*100:.1f}%)"
+                )
+            elif sig_type == 'contrarian_whale':
+                side = sig.get('contrarian_side', '?')
+                signal_lines.append(
+                    f"- Contrarian Whale: {sig.get('ratio', 0):.1f}x influx on {side}"
+                )
+
+        signals_text = "\n".join(signal_lines) if signal_lines else "- No specific signals"
+
+        # Format end date
+        end_date_text = "Unknown"
+        if end_date:
+            try:
+                if hasattr(end_date, 'strftime'):
+                    end_date_text = end_date.strftime("%b %d, %Y")
+                else:
+                    end_date_text = str(end_date)
+            except Exception:
+                end_date_text = str(end_date)
+
+        # Format news
+        news_text = ""
+        if news_context:
+            news_text = "\n\nRecent News:\n"
+            for i, article in enumerate(news_context[:5], 1):
+                news_text += f"{i}. {article.get('title', 'No title')}\n"
+                if article.get('description'):
+                    news_text += f"   {article.get('description', '')[:200]}\n"
+
+        # Get past accuracy
+        accuracy_stats = get_past_accuracy_stats()
+
+        # Format prices
+        yes_pct = f"{yes_price*100:.1f}" if yes_price is not None else "N/A"
+        no_pct = f"{no_price*100:.1f}" if no_price is not None else "N/A"
+
+        prompt = f"""You are a Polymarket trading analyst. Analyze these signals and suggest a trade.
+
+Market: {market_question}
+Current Price: {yes_pct}% YES / {no_pct}% NO
+Market Ends: {end_date_text}
+
+Detected Signals:
+{signals_text}
+{news_text}
+
+Past Prediction Accuracy:
+{accuracy_stats}
+
+Respond in this exact JSON format (no markdown, no code fences, just raw JSON):
+{{"play": "BUY YES" or "BUY NO" or "NO TRADE", "grade": "A+" or "A" or "B+" or "B" or "C", "reasoning": "2-3 sentences explaining the analysis", "key_signal": "which signal is most important"}}
+
+Grade scale:
+- A+ = High conviction, multiple confirming signals, strong momentum
+- A = Strong setup, clear direction
+- B+ = Moderate-high, some confirming signals
+- B = Moderate, worth a small position
+- C = Weak/speculative, signals mixed
+
+Be concise and decisive. Do NOT hedge or add disclaimers."""
+
+        message = client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=MAX_TOKENS,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        raw_response = message.content[0].text.strip()
+        logger.info(f"Unified AI analysis generated for {market_question[:50]}...")
+
+        # Parse JSON response
+        try:
+            # Strip code fences if present
+            cleaned = raw_response
+            if cleaned.startswith("```"):
+                cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
+            if cleaned.endswith("```"):
+                cleaned = cleaned[:-3]
+            cleaned = cleaned.strip()
+
+            result = json.loads(cleaned)
+            result['raw_analysis'] = raw_response
+            return result
+        except json.JSONDecodeError:
+            logger.warning(f"Could not parse AI JSON response: {raw_response[:200]}")
+            # Return a fallback with the raw text as reasoning
+            return {
+                'play': 'NO TRADE',
+                'grade': 'C',
+                'reasoning': raw_response[:500],
+                'key_signal': 'unknown',
+                'raw_analysis': raw_response
+            }
+
+    except anthropic.APIError as e:
+        logger.error(f"Claude API error in unified analysis: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Error in unified signal analysis: {e}")
+        return None
+
+
+# =============================================================================
+# Main Analysis Function (backward compat)
 # =============================================================================
 
 def analyze_spike(spike_data):
