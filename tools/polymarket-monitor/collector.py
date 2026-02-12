@@ -263,15 +263,29 @@ def store_market_snapshot(market_data, orderbook_data):
 
 def is_active_market(market):
     """
-    Check if a market is actively trading (not resolved).
+    Check if a market is actively trading (not resolved or expired).
     Resolved markets have prices at 0 or 1 and return 404 from CLOB API.
+    Expired markets have an end_date in the past.
 
     Args:
-        market: Market dict with yes_price and no_price
+        market: Market dict with yes_price, no_price, and end_date
 
     Returns:
         True if market appears to be actively trading
     """
+    # Skip markets whose end date has already passed
+    end_date = market.get("end_date")
+    if end_date is not None:
+        now = datetime.utcnow()
+        # end_date may be offset-aware; compare as naive UTC
+        if hasattr(end_date, 'tzinfo') and end_date.tzinfo is not None:
+            end_date_naive = end_date.replace(tzinfo=None)
+        else:
+            end_date_naive = end_date
+        if end_date_naive < now:
+            logger.debug(f"Skipping expired market (end_date={end_date}): {market.get('question', market.get('market_id'))}")
+            return False
+
     yes_price = market.get("yes_price")
     no_price = market.get("no_price")
 

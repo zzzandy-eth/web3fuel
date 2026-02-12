@@ -61,6 +61,7 @@ PRICE_METRICS = ['yes_price']
 def get_markets_with_sufficient_history():
     """
     Get list of market_ids that have enough historical data for baseline calculation.
+    Only returns markets that are still active (end_date in the future or NULL).
 
     Returns:
         List of market_id strings with >= MIN_SNAPSHOTS_FOR_BASELINE snapshots
@@ -73,9 +74,11 @@ def get_markets_with_sufficient_history():
         cursor = connection.cursor()
 
         query = """
-            SELECT market_id, COUNT(*) as snapshot_count
-            FROM market_snapshots
-            GROUP BY market_id
+            SELECT ms.market_id, COUNT(*) as snapshot_count
+            FROM market_snapshots ms
+            JOIN markets m ON ms.market_id = m.market_id
+            WHERE (m.end_date IS NULL OR m.end_date > NOW())
+            GROUP BY ms.market_id
             HAVING COUNT(*) >= %s
         """
 
@@ -83,7 +86,7 @@ def get_markets_with_sufficient_history():
         results = cursor.fetchall()
 
         market_ids = [row[0] for row in results]
-        logger.debug(f"Found {len(market_ids)} markets with sufficient history")
+        logger.debug(f"Found {len(market_ids)} active markets with sufficient history")
 
         return market_ids
 
@@ -1061,6 +1064,23 @@ def detect_all_spikes(threshold=None, price_threshold=None):
             no_price = market.get('no_price')
             slug = market.get('slug', '')
             end_date = market.get('end_date')
+
+            # Safety net: skip markets whose end_date has already passed
+            if end_date is not None:
+                now = datetime.utcnow()
+                end_dt = end_date if isinstance(end_date, datetime) else None
+                if end_dt is None:
+                    try:
+                        from dateutil import parser as dateutil_parser
+                        end_dt = dateutil_parser.parse(str(end_date))
+                    except Exception:
+                        pass
+                if end_dt is not None:
+                    if hasattr(end_dt, 'tzinfo') and end_dt.tzinfo is not None:
+                        end_dt = end_dt.replace(tzinfo=None)
+                    if end_dt < now:
+                        logger.info(f"Skipping expired market {market_id} (end_date={end_date})")
+                        continue
 
             # Log each individual signal to spike_alerts (preserves granular data)
             alert_ids = []
