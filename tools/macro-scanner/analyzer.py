@@ -138,6 +138,86 @@ def _extract_confidence(result):
     return 1
 
 
+# US ticker → TSX equivalent mapping (sector ETFs and common instruments)
+_TSX_EQUIVALENTS = {
+    # Broad market
+    "SPY": "ZSP.TO",     # BMO S&P 500
+    "QQQ": "ZQQ.TO",     # BMO Nasdaq 100
+    "IWM": "XSU.TO",     # iShares US Small Cap
+    "DIA": "ZDJ.TO",     # BMO Dow Jones
+    # Sector ETFs
+    "XLE": "XEG.TO",     # iShares S&P/TSX Capped Energy
+    "XLF": "ZEB.TO",     # BMO Equal Weight Banks
+    "XLK": "XIT.TO",     # iShares S&P/TSX Capped IT
+    "XLV": "XHC.TO",     # iShares US Healthcare (CAD-hedged)
+    "XLU": "ZUT.TO",     # BMO Equal Weight Utilities
+    "XLP": "XST.TO",     # iShares S&P/TSX Capped Consumer Staples
+    "XLI": "ZIN.TO",     # BMO Equal Weight Industrials
+    "XLB": "XMA.TO",     # iShares S&P/TSX Capped Materials
+    "XLRE": "ZRE.TO",    # BMO Equal Weight REITs
+    # Commodities
+    "GLD": "CGL.TO",     # iShares Gold (CAD-hedged)
+    "SLV": "SVR.TO",     # Horizons Silver
+    "USO": "HUC.TO",     # Horizons Crude Oil
+    "UNG": "HUN.TO",     # Horizons Natural Gas
+    # Bonds
+    "TLT": "ZFL.TO",     # BMO Long Federal Bond
+    "SHY": "ZST.TO",     # BMO Ultra Short-Term Bond
+    # Volatility
+    "VIXY": "HUV.TO",    # Horizons VIX Short-Term Futures
+    "VXX": "HUV.TO",
+    # Popular cross-listed stocks (trade directly on TSX)
+    "CNQ": "CNQ.TO",
+    "SU": "SU.TO",
+    "ENB": "ENB.TO",
+    "CP": "CP.TO",
+    "CNR": "CNR.TO",
+    "TD": "TD.TO",
+    "RY": "RY.TO",
+    "BNS": "BNS.TO",
+    "BMO": "BMO.TO",
+    "SHOP": "SHOP.TO",
+    "BCE": "BCE.TO",
+    "NTR": "NTR.TO",
+    "ABX": "ABX.TO",
+    "MFC": "MFC.TO",
+}
+
+
+def _find_tsx_equivalents(tickers):
+    """
+    Find TSX equivalents for US tickers.
+    Checks curated mapping first, then probes yfinance for .TO listing.
+
+    Args:
+        tickers: List of US ticker symbols
+
+    Returns:
+        Dict of {us_ticker: tsx_ticker} for found equivalents
+    """
+    tsx_map = {}
+
+    for ticker in tickers:
+        # Check curated mapping first
+        if ticker in _TSX_EQUIVALENTS:
+            tsx_map[ticker] = _TSX_EQUIVALENTS[ticker]
+            logger.debug(f"TSX mapping: {ticker} -> {_TSX_EQUIVALENTS[ticker]}")
+            continue
+
+        # Probe yfinance for .TO listing
+        tsx_symbol = f"{ticker}.TO"
+        try:
+            t = yf.Ticker(tsx_symbol)
+            hist = t.history(period="5d", interval="1d")
+            if not hist.empty:
+                tsx_map[ticker] = tsx_symbol
+                logger.debug(f"TSX found via yfinance: {ticker} -> {tsx_symbol}")
+        except Exception:
+            pass  # No TSX equivalent found, that's fine
+
+    return tsx_map
+
+
 def _fetch_ticker_prices(tickers):
     """
     Fetch current prices for a list of tickers via yfinance.
@@ -331,6 +411,24 @@ def analyze_macro(top3, indicators):
                         result['trade'] = trade
                 else:
                     logger.warning("Could not fetch any live prices")
+
+            # Step 3: Find TSX equivalents
+            if tickers:
+                logger.info(f"Looking up TSX equivalents for {tickers}...")
+                tsx_map = _find_tsx_equivalents(tickers)
+                if tsx_map:
+                    # Fetch TSX prices
+                    tsx_prices = _fetch_ticker_prices(list(tsx_map.values()))
+                    tsx_alternatives = {}
+                    for us_ticker, tsx_ticker in tsx_map.items():
+                        tsx_price = tsx_prices.get(tsx_ticker)
+                        tsx_alternatives[us_ticker] = {
+                            "ticker": tsx_ticker,
+                            "price": tsx_price
+                        }
+                    trade['tsx_alternatives'] = tsx_alternatives
+                    result['trade'] = trade
+                    logger.info(f"TSX equivalents: {tsx_map}")
 
             return result
 

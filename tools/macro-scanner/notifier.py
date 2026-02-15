@@ -146,6 +146,17 @@ def send_macro_alert(analysis, indicators=None):
             if position_note:
                 setup_lines.append(f"\n_{position_note}_")
 
+            # TSX alternatives
+            tsx_alts = trade.get('tsx_alternatives', {})
+            if tsx_alts:
+                tsx_lines = []
+                for us_ticker, tsx_info in tsx_alts.items():
+                    tsx_ticker = tsx_info.get('ticker', '')
+                    tsx_price = tsx_info.get('price')
+                    price_str = f" (C${tsx_price})" if tsx_price else ""
+                    tsx_lines.append(f"{us_ticker} \u2192 {tsx_ticker}{price_str}")
+                setup_lines.append(f"\n\U0001f1e8\U0001f1e6 **TSX:** {' | '.join(tsx_lines)}")
+
             fields.append({
                 "name": f"\U0001f4b0 Trade Setup | Regime: {regime}",
                 "value": '\n'.join(setup_lines)[:1024],
@@ -293,6 +304,17 @@ def send_daily_summary(summary):
             timeline = trade.get('timeline', '')
             if timeline:
                 trade_lines.append(f"\n**Timeline:** {timeline}")
+
+            # TSX alternatives
+            tsx_alts = trade.get('tsx_alternatives', {})
+            if tsx_alts:
+                tsx_lines = []
+                for us_ticker, tsx_info in tsx_alts.items():
+                    tsx_ticker = tsx_info.get('ticker', '')
+                    tsx_price = tsx_info.get('price')
+                    price_str = f" (C${tsx_price})" if tsx_price else ""
+                    tsx_lines.append(f"{us_ticker} \u2192 {tsx_ticker}{price_str}")
+                trade_lines.append(f"\n\U0001f1e8\U0001f1e6 **TSX:** {' | '.join(tsx_lines)}")
 
             fields.append({
                 "name": "\U0001f4b0 Trade Setup (Verified Prices)",
