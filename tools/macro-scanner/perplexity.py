@@ -122,6 +122,16 @@ def _parse_json_response(content):
     return None
 
 
+def _get_active_position_tickers():
+    """Return list of tickers from active positions, or empty list."""
+    try:
+        from database import get_active_positions
+        positions = get_active_positions()
+        return list({p['ticker'] for p in positions})
+    except Exception:
+        return []
+
+
 def _fetch_from_api():
     """
     Fallback: fetch top macro items via Perplexity API (sonar model).
@@ -141,6 +151,25 @@ def _fetch_from_api():
         "Content-Type": "application/json"
     }
 
+    user_content = (
+        "Top 3 most market-moving macro/financial news items TODAY. "
+        "For each return: headline, impact_score (1-10), "
+        "direction (bullish/bearish/mixed), "
+        "affected_sectors (list), "
+        "rationale (1-2 sentences for swing traders), "
+        "key_instruments (specific tickers like SPY, TLT, GLD). "
+        "JSON array sorted by impact_score desc. "
+        "Focus on: Fed, inflation, jobs, GDP, geopolitics, earnings, commodities."
+    )
+
+    # Append active position tickers so Perplexity flags relevant news
+    position_tickers = _get_active_position_tickers()
+    if position_tickers:
+        user_content += (
+            f" Also flag any news that may specifically affect these "
+            f"active positions: {', '.join(position_tickers)}."
+        )
+
     payload = {
         "model": PERPLEXITY_MODEL,
         "messages": [
@@ -150,16 +179,7 @@ def _fetch_from_api():
             },
             {
                 "role": "user",
-                "content": (
-                    "Top 3 most market-moving macro/financial news items TODAY. "
-                    "For each return: headline, impact_score (1-10), "
-                    "direction (bullish/bearish/mixed), "
-                    "affected_sectors (list), "
-                    "rationale (1-2 sentences for swing traders), "
-                    "key_instruments (specific tickers like SPY, TLT, GLD). "
-                    "JSON array sorted by impact_score desc. "
-                    "Focus on: Fed, inflation, jobs, GDP, geopolitics, earnings, commodities."
-                )
+                "content": user_content
             }
         ],
         "max_tokens": 1500,

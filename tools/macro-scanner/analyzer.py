@@ -16,13 +16,57 @@ from indicators import format_indicators_text
 logger = logging.getLogger(__name__)
 
 
-def _build_analysis_prompt(top3, indicators):
+def _format_active_positions_section(active_positions):
+    """Format active positions for injection into Claude prompt."""
+    if not active_positions:
+        return ""
+
+    lines = ["\n## Active Positions (evaluate if today's catalysts affect these)"]
+    for pos in active_positions:
+        ticker = pos['ticker']
+        direction = pos['direction'].upper()
+        entry = pos.get('entry_price', '?')
+        target = pos.get('target_price', '?')
+        stop = pos.get('stop_loss', '?')
+        lines.append(f"  - {direction} {ticker} @ ${entry} (target: ${target}, stop: ${stop})")
+
+    lines.append("")
+    return '\n'.join(lines)
+
+
+def get_past_accuracy_stats():
+    """
+    Get formatted accuracy stats for injection into Claude's prompt.
+
+    Returns:
+        Formatted string showing win rates by setup grade, or a "no data" message.
+    """
+    from database import get_accuracy_by_grade
+
+    stats = get_accuracy_by_grade(days=90)
+    if not stats:
+        return "No past trade outcomes resolved yet."
+
+    lines = []
+    for grade in ['A+', 'A', 'B+', 'B', 'C']:
+        if grade in stats:
+            s = stats[grade]
+            lines.append(
+                f"  - {grade} trades: {s['wins']}/{s['total']} wins "
+                f"({s['win_rate']}%), avg move {s['avg_move']:+.1f}%"
+            )
+
+    return '\n'.join(lines) if lines else "No past trade outcomes resolved yet."
+
+
+def _build_analysis_prompt(top3, indicators, active_positions=None):
     """
     Build the analysis prompt for Claude.
 
     Args:
         top3: List of high-impact stories from Perplexity
         indicators: Dict of market indicators
+        active_positions: Optional list of active position dicts
 
     Returns:
         Prompt string
@@ -74,6 +118,14 @@ def _build_analysis_prompt(top3, indicators):
         f"## Market Indicators (6h snapshot)\n{indicators_text}\n\n"
         f"## Today's Macro Catalysts\n{stories_text}\n"
 
+        f"\n## Your Past Track Record (last 90 days)\n"
+        f"{get_past_accuracy_stats()}\n"
+        "Use this to calibrate your confidence and grading. If your high-grade setups "
+        "are underperforming, be more selective. If low grades are winning, you may be "
+        "too conservative.\n"
+
+        f"{_format_active_positions_section(active_positions)}"
+
         "\n## Output Format\n"
         "Return ONLY a JSON object:\n"
         "{\n"
@@ -88,8 +140,27 @@ def _build_analysis_prompt(top3, indicators):
         '    "position_note": "optional: sizing hint or options strategy if relevant"\n'
         '  },\n'
         '  "confidence": 0-5 (0 = nothing worth trading today, 1 = speculative, '
-        '3 = solid setup, 5 = highest conviction)\n'
+        '3 = solid setup, 5 = highest conviction),\n'
+        '  "setup_grade": "A+" or "A" or "B+" or "B" or "C",\n'
+        '  "position_alerts": [{"ticker": "XLE", "alert_text": "why this catalyst affects the position", '
+        '"suggested_action": "hold" or "tighten_stop" or "take_profit" or "close"}]\n'
         "}\n\n"
+        "POSITION ALERTS: Only include position_alerts if active positions exist above AND "
+        "today's catalysts meaningfully affect them. Omit the field entirely otherwise.\n\n"
+        "SETUP GRADE (holistic assessment of the entire opportunity):\n"
+        "- A+ = Rare. Catalyst is unambiguous, regime + indicators strongly confirm direction, "
+        "sector is not yet priced in, clear asymmetric R:R. Multiple signals align.\n"
+        "- A = Strong. Clear catalyst with directional conviction, regime supports the trade, "
+        "good sector read, solid R:R.\n"
+        "- B+ = Above average. Catalyst is real but market may partially price it in, or "
+        "one indicator diverges. Still worth trading.\n"
+        "- B = Moderate. Decent catalyst but regime is mixed, or sector impact is unclear. "
+        "Smaller position warranted.\n"
+        "- C = Weak. Catalyst is ambiguous, indicators conflict, or move is likely priced in. "
+        "Speculative at best.\n\n"
+        "The grade should reflect the TOTAL picture: catalyst strength + regime alignment + "
+        "indicator confluence + sector clarity + timing. A confidence-5 trade should be A or A+. "
+        "Confidence 0-1 should be C.\n\n"
         "CRITICAL RULES:\n"
         "- If nothing is genuinely tradeable today, return confidence: 0 with empty trade.\n"
         "- Never recommend a trade just because news exists. No trade is a valid answer.\n"
@@ -310,13 +381,14 @@ def _set_fallback_prices(trade, prices):
     trade['stop_loss'] = 'see thesis'
 
 
-def analyze_macro(top3, indicators):
+def analyze_macro(top3, indicators, active_positions=None):
     """
     Analyze macro stories and indicators using Claude to produce trade ideas.
 
     Args:
         top3: List of high-impact stories from Perplexity
         indicators: Dict of market indicators from fetch_indicators()
+        active_positions: Optional list of active position dicts
 
     Returns:
         Dict with top_3_stories, narrative, trade_idea, confidence
@@ -332,7 +404,7 @@ def analyze_macro(top3, indicators):
 
     logger.info(f"Running Claude analysis on {len(top3)} stories...")
 
-    prompt = _build_analysis_prompt(top3, indicators)
+    prompt = _build_analysis_prompt(top3, indicators, active_positions=active_positions)
 
     try:
         client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
@@ -429,6 +501,19 @@ def analyze_macro(top3, indicators):
                     trade['tsx_alternatives'] = tsx_alternatives
                     result['trade'] = trade
                     logger.info(f"TSX equivalents: {tsx_map}")
+
+            # Step 4: Find related Polymarket bets
+            try:
+                from polymarket_bridge import find_polymarket_bets
+                polymarket_bet = find_polymarket_bets(
+                    result.get('narrative', ''),
+                    result.get('sector_impact', ''),
+                    client,
+                )
+                if polymarket_bet:
+                    result['polymarket_bet'] = polymarket_bet
+            except Exception as e:
+                logger.warning(f"Polymarket bridge failed (non-fatal): {e}")
 
             return result
 

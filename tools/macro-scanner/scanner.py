@@ -11,6 +11,10 @@ Usage:
     python scanner.py --deep-dive=list # Show pending deep-dive queue as JSON
     python scanner.py --deep-dive      # Read daily summary JSON from stdin, store + send summary
     python scanner.py --deep-dive=file # Read daily summary JSON from file path
+    python scanner.py --resolve        # Run outcome resolver + position checker only
+    python scanner.py --enter <id>     # Enter positions from a trade alert
+    python scanner.py --positions      # List open positions
+    python scanner.py --close <id>     # Close a position (optional --price X.XX)
 """
 
 import sys
@@ -71,7 +75,10 @@ def run_pipeline(notify=True):
     from indicators import fetch_indicators, indicators_to_serializable
     from analyzer import analyze_macro
     from notifier import send_macro_alert
-    from database import insert_scan_result, insert_trade_alert, mark_alert_notified
+    from database import (
+        insert_scan_result, insert_trade_alert, mark_alert_notified,
+        auto_create_outcomes, get_active_positions
+    )
 
     start_time = time.time()
     scan_id = None
@@ -105,15 +112,20 @@ def run_pipeline(notify=True):
     logger.info("Market indicators fetched")
 
     # =========================================================================
-    # Step 3: Claude analysis
+    # Step 3: Claude analysis (with active position awareness)
     # =========================================================================
     logger.info("=" * 60)
     logger.info("Step 3/4: Claude analysis")
     logger.info("=" * 60)
 
+    # Fetch active positions for injection into Claude prompt
+    active_positions = get_active_positions()
+    if active_positions:
+        logger.info(f"Injecting {len(active_positions)} active position(s) into analysis")
+
     analysis = None
     if CLAUDE_API_KEY:
-        analysis = analyze_macro(top3, indicators)
+        analysis = analyze_macro(top3, indicators, active_positions=active_positions)
         if analysis:
             logger.info(f"Claude analysis complete (confidence: {analysis.get('confidence', '?')}/5)")
         else:
@@ -129,6 +141,21 @@ def run_pipeline(notify=True):
 
     if analysis and scan_id:
         alert_id = _store_trade_alert(scan_id, analysis)
+
+        # Auto-create trade outcomes for feedback loop
+        if alert_id and analysis.get('confidence', 0) >= 2:
+            trade = analysis.get('trade', {})
+            if trade.get('tickers'):
+                try:
+                    count = auto_create_outcomes(
+                        alert_id, trade,
+                        analysis.get('setup_grade', ''),
+                        analysis.get('confidence', 0)
+                    )
+                    if count:
+                        logger.info(f"Created {count} trade outcome(s) for feedback loop")
+                except Exception as e:
+                    logger.warning(f"Failed to create trade outcomes (non-fatal): {e}")
 
     # =========================================================================
     # Queue high-impact stories for deep-dive research
@@ -211,8 +238,10 @@ def _store_trade_alert(scan_id, analysis):
         sector = analysis.get('sector_impact', '')
         if trade and trade.get('tickers'):
             tickers = ', '.join(trade.get('tickers', []))
+            grade = analysis.get('setup_grade', '')
+            grade_prefix = f"[{grade}] " if grade else ""
             trade_idea = (
-                f"{trade.get('direction', 'long').upper()} {tickers}"
+                f"{grade_prefix}{trade.get('direction', 'long').upper()} {tickers}"
                 f"{' | ' + sector if sector else ''} | "
                 f"Entry: {trade.get('entry', 'N/A')} | "
                 f"Target: {trade.get('target', 'N/A')} | "
@@ -222,9 +251,18 @@ def _store_trade_alert(scan_id, analysis):
         else:
             trade_idea = analysis.get('trade_idea', 'No trade')
 
+        # Include polymarket bet and setup grade in stored data if present
+        stored_data = analysis.get('trade', {})
+        if analysis.get('polymarket_bet') or analysis.get('setup_grade'):
+            stored_data = dict(stored_data)
+            if analysis.get('polymarket_bet'):
+                stored_data['polymarket_bet'] = analysis['polymarket_bet']
+            if analysis.get('setup_grade'):
+                stored_data['setup_grade'] = analysis['setup_grade']
+
         alert_id = insert_trade_alert({
             'scan_id': scan_id,
-            'top_stories': analysis.get('trade', {}),
+            'top_stories': stored_data,
             'narrative': analysis.get('narrative', ''),
             'trade_idea': trade_idea,
             'confidence': analysis.get('confidence', 0)
@@ -322,11 +360,19 @@ def run_deep_dives(source):
             logger.warning(f"Failed to update queue_id={queue_id}")
 
     # Build summary payload
+    polymarket_bet = data.get('polymarket_bet') or trade.get('polymarket_bet')
+    setup_grade = data.get('setup_grade', '')
     summary = {
         "headlines": headlines,
         "insights": completed_dives,
-        "trade": trade
+        "trade": trade,
     }
+    if polymarket_bet:
+        summary['polymarket_bet'] = polymarket_bet
+    if setup_grade:
+        summary['setup_grade'] = setup_grade
+    if data.get('position_alerts'):
+        summary['position_alerts'] = data['position_alerts']
 
     if (headlines or completed_dives) and DISCORD_WEBHOOK_URL:
         send_daily_summary(summary)
@@ -346,6 +392,16 @@ def main():
                         help="Run pipeline without sending Discord notification")
     parser.add_argument('--deep-dive', type=str, nargs='?', const='', dest='deep_dive',
                         help="Deep-dive mode: 'list' to show pending queue as JSON, or path/stdin to store daily summary")
+    parser.add_argument('--resolve', action='store_true',
+                        help="Run outcome resolver + position checker only")
+    parser.add_argument('--enter', type=int, metavar='ALERT_ID',
+                        help="Enter positions from a trade alert ID")
+    parser.add_argument('--positions', action='store_true',
+                        help="List open active positions")
+    parser.add_argument('--close', type=int, metavar='POSITION_ID',
+                        help="Close an active position by ID")
+    parser.add_argument('--price', type=float, metavar='X.XX',
+                        help="Exit price for --close (fetches live price if omitted)")
     args = parser.parse_args()
 
     setup_logging()
@@ -367,6 +423,80 @@ def main():
         else:
             run_deep_dives(args.deep_dive)
             sys.exit(0)
+
+    # Handle --resolve mode (standalone resolver run)
+    if args.resolve:
+        from database import init_database
+        init_database()
+        from resolver import check_resolutions, check_active_positions
+
+        logger.info("Running standalone resolution check...")
+        resolved = check_resolutions()
+        updated = check_active_positions()
+        logger.info(f"Resolver done: {resolved} outcomes resolved, {updated} positions updated")
+        sys.exit(0)
+
+    # Handle --enter <alert_id>
+    if args.enter is not None:
+        from database import init_database, enter_position_from_alert
+        init_database()
+
+        position_ids = enter_position_from_alert(args.enter)
+        if position_ids:
+            print(f"Created {len(position_ids)} position(s) from alert {args.enter}:")
+            for pid in position_ids:
+                print(f"  Position ID: {pid}")
+        else:
+            print(f"Failed to create positions from alert {args.enter}")
+        sys.exit(0)
+
+    # Handle --positions
+    if args.positions:
+        from database import init_database, get_active_positions
+        init_database()
+
+        positions = get_active_positions()
+        if not positions:
+            print("No open positions.")
+            sys.exit(0)
+
+        print(f"{'ID':>5}  {'Ticker':<8}  {'Dir':<6}  {'Entry':>10}  {'Target':>10}  {'Stop':>10}  {'Date'}")
+        print("-" * 75)
+        for p in positions:
+            entry = f"${float(p['entry_price']):.2f}" if p['entry_price'] else "N/A"
+            target = f"${float(p['target_price']):.2f}" if p['target_price'] else "N/A"
+            stop = f"${float(p['stop_loss']):.2f}" if p['stop_loss'] else "N/A"
+            date = p['entry_date'].strftime('%Y-%m-%d') if p.get('entry_date') else "?"
+            print(f"{p['id']:>5}  {p['ticker']:<8}  {p['direction']:<6}  {entry:>10}  {target:>10}  {stop:>10}  {date}")
+        sys.exit(0)
+
+    # Handle --close <position_id>
+    if args.close is not None:
+        from database import init_database, close_position
+        init_database()
+
+        exit_price = args.price
+        if exit_price is None:
+            # Fetch live price
+            from analyzer import _fetch_ticker_prices
+            from database import get_connection
+            conn = get_connection()
+            cur = conn.cursor(dictionary=True)
+            cur.execute("SELECT ticker FROM active_positions WHERE id = %s", (args.close,))
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            if row:
+                prices = _fetch_ticker_prices([row['ticker']])
+                exit_price = prices.get(row['ticker'])
+
+        success = close_position(args.close, exit_price=exit_price)
+        if success:
+            price_str = f" @ ${exit_price:.2f}" if exit_price else ""
+            print(f"Closed position {args.close}{price_str}")
+        else:
+            print(f"Failed to close position {args.close} (may already be closed)")
+        sys.exit(0)
 
     # If --scan provided, load Comet results into scan_input.json first
     if args.scan is not None:
@@ -410,6 +540,16 @@ def main():
         scan_id, alert_id = run_pipeline(notify=should_notify)
     except Exception as e:
         logger.error(f"Pipeline failed with unexpected error: {e}", exc_info=True)
+
+    # Run outcome resolver + position checker
+    try:
+        from resolver import check_resolutions, check_active_positions
+        resolved = check_resolutions()
+        updated = check_active_positions()
+        if resolved or updated:
+            logger.info(f"Resolver: {resolved} outcomes resolved, {updated} positions updated")
+    except Exception as e:
+        logger.error(f"Resolver failed (non-fatal): {e}")
 
     # Run cleanup
     try:

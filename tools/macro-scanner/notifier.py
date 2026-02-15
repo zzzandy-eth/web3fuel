@@ -31,6 +31,14 @@ DIRECTION_EMOJI = {
     "mixed": "\U0001f7e1",     # yellow circle
 }
 
+# Position alert action emojis
+POSITION_ACTION_EMOJI = {
+    "hold": "\U0001f7e2",         # green circle
+    "tighten_stop": "\U0001f7e1", # yellow circle
+    "take_profit": "\U0001f4b0",  # money bag
+    "close": "\U0001f534",        # red circle
+}
+
 # In-memory dedup cache
 _recent_notifications = OrderedDict()
 _DEDUP_WINDOW_SECONDS = 300  # 5 minute window
@@ -163,12 +171,46 @@ def send_macro_alert(analysis, indicators=None):
                 "inline": False
             })
 
+        # Polymarket prediction market bet
+        pm_bet = analysis.get('polymarket_bet')
+        if pm_bet:
+            pm_lines = [f"\"{pm_bet['question']}\" \u2014 Currently {pm_bet['current_odds']}"]
+            pm_lines.append(f"\u27a1\ufe0f **{pm_bet['direction']}** ({pm_bet.get('edge', '')})")
+            if pm_bet.get('url'):
+                pm_lines.append(f"[View on Polymarket]({pm_bet['url']})")
+            if pm_bet.get('end_date'):
+                pm_lines.append(f"Resolves: {pm_bet['end_date']}")
+            fields.append({
+                "name": "\U0001f52e Prediction Market",
+                "value": '\n'.join(pm_lines)[:1024],
+                "inline": False
+            })
+
+        # Active position alerts
+        position_alerts = analysis.get('position_alerts', [])
+        if position_alerts:
+            alert_lines = []
+            for pa in position_alerts:
+                action = pa.get('suggested_action', 'hold')
+                emoji = POSITION_ACTION_EMOJI.get(action, "\u2753")
+                alert_lines.append(
+                    f"{emoji} **{pa.get('ticker', '?')}**: {pa.get('alert_text', '')}"
+                )
+            fields.append({
+                "name": "\U0001f6a8 Active Position Updates",
+                "value": '\n'.join(alert_lines)[:1024],
+                "inline": False
+            })
+
+        setup_grade = analysis.get('setup_grade', '')
+        grade_display = f" | {setup_grade} Setup" if setup_grade else ""
+
         embed = {
-            "title": f"\U0001f3db\ufe0f {narrative[:200]}",
+            "title": f"\U0001f3db\ufe0f{grade_display} \u2014 {narrative[:180]}",
             "color": color,
             "fields": fields,
             "footer": {
-                "text": f"Macro Scanner \u2022 Conf {confidence}/5 \u2022 {timestamp_display}"
+                "text": f"Macro Scanner \u2022 {setup_grade + ' \u2022 ' if setup_grade else ''}Conf {confidence}/5 \u2022 {timestamp_display}"
             },
             "timestamp": now.isoformat()
         }
@@ -322,12 +364,46 @@ def send_daily_summary(summary):
                 "inline": False
             })
 
+        # Polymarket prediction market bet
+        pm_bet = summary.get('polymarket_bet')
+        if pm_bet:
+            pm_lines = [f"\"{pm_bet['question']}\" \u2014 Currently {pm_bet['current_odds']}"]
+            pm_lines.append(f"\u27a1\ufe0f **{pm_bet['direction']}** ({pm_bet.get('edge', '')})")
+            if pm_bet.get('url'):
+                pm_lines.append(f"[View on Polymarket]({pm_bet['url']})")
+            if pm_bet.get('end_date'):
+                pm_lines.append(f"Resolves: {pm_bet['end_date']}")
+            fields.append({
+                "name": "\U0001f52e Prediction Market",
+                "value": '\n'.join(pm_lines)[:1024],
+                "inline": False
+            })
+
+        # Active position alerts
+        position_alerts = summary.get('position_alerts', [])
+        if position_alerts:
+            alert_lines = []
+            for pa in position_alerts:
+                action = pa.get('suggested_action', 'hold')
+                emoji = POSITION_ACTION_EMOJI.get(action, "\u2753")
+                alert_lines.append(
+                    f"{emoji} **{pa.get('ticker', '?')}**: {pa.get('alert_text', '')}"
+                )
+            fields.append({
+                "name": "\U0001f6a8 Active Position Updates",
+                "value": '\n'.join(alert_lines)[:1024],
+                "inline": False
+            })
+
+        setup_grade = summary.get('setup_grade', '')
+        grade_display = f" | {setup_grade} Setup" if setup_grade else ""
+
         embed = {
-            "title": f"\U0001f4cb Daily Macro Briefing",
+            "title": f"\U0001f4cb Daily Macro Briefing{grade_display}",
             "color": COLOR_DAILY_SUMMARY,
             "fields": fields,
             "footer": {
-                "text": f"Daily Summary \u2022 {timestamp_display}"
+                "text": f"Daily Summary{' \u2022 ' + setup_grade if setup_grade else ''} \u2022 {timestamp_display}"
             },
             "timestamp": now.isoformat()
         }

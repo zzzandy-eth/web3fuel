@@ -7,7 +7,10 @@ import json
 import mysql.connector
 from mysql.connector import Error
 import logging
-from config import DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT, DEEP_DIVE_EXPIRY_HOURS
+from config import (
+    DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT,
+    DEEP_DIVE_EXPIRY_HOURS, OUTCOME_RESOLUTION_DAYS, OUTCOME_BREAKEVEN_PCT
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +102,56 @@ def init_database():
                 FOREIGN KEY (scan_id) REFERENCES scan_results(id) ON DELETE SET NULL,
                 INDEX idx_status (status),
                 INDEX idx_expires_at (expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # Create trade_outcomes table (feedback loop)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS trade_outcomes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                alert_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ticker VARCHAR(20) NOT NULL,
+                direction VARCHAR(10) NOT NULL,
+                entry_price DECIMAL(12,4),
+                target_price DECIMAL(12,4),
+                stop_price DECIMAL(12,4),
+                setup_grade VARCHAR(5),
+                confidence INT,
+                expires_at TIMESTAMP NOT NULL,
+                resolved BOOLEAN DEFAULT FALSE,
+                resolved_at TIMESTAMP NULL,
+                outcome ENUM('win','loss','breakeven','expired') NULL,
+                exit_price DECIMAL(12,4) NULL,
+                pct_move DECIMAL(8,4) NULL,
+                FOREIGN KEY (alert_id) REFERENCES trade_alerts(id) ON DELETE CASCADE,
+                INDEX idx_resolved (resolved),
+                INDEX idx_setup_grade (setup_grade),
+                INDEX idx_expires_at (expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+
+        # Create active_positions table (position tracking)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS active_positions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id VARCHAR(50) DEFAULT 'default',
+                alert_id INT NULL,
+                ticker VARCHAR(20) NOT NULL,
+                direction VARCHAR(10) NOT NULL,
+                entry_price DECIMAL(12,4),
+                entry_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                target_price DECIMAL(12,4),
+                stop_loss DECIMAL(12,4),
+                status ENUM('open','closed','stopped_out','target_hit','expired') DEFAULT 'open',
+                exit_price DECIMAL(12,4) NULL,
+                exit_date TIMESTAMP NULL,
+                thesis TEXT,
+                notes TEXT,
+                FOREIGN KEY (alert_id) REFERENCES trade_alerts(id) ON DELETE SET NULL,
+                INDEX idx_user_status (user_id, status),
+                INDEX idx_ticker (ticker),
+                INDEX idx_alert_id (alert_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
 
@@ -488,6 +541,419 @@ def update_deep_dive(queue_id, status, deep_research=None):
             connection.close()
 
 
+# =============================================================================
+# Trade Outcomes (Feedback Loop)
+# =============================================================================
+
+def _parse_price_string(price_str, ticker):
+    """
+    Extract a dollar price for a specific ticker from strings like:
+      "XLE: $89.50; OXY: $52.10"
+      "XLE: at market ($89.50)"
+      "$89.50"
+
+    Returns:
+        float or None
+    """
+    if not price_str:
+        return None
+
+    import re
+
+    # Try ticker-specific pattern first: "TICKER: $XX.XX" or "TICKER: at market ($XX.XX)"
+    pattern = rf'{re.escape(ticker)}[^$]*\$(\d+(?:\.\d+)?)'
+    match = re.search(pattern, str(price_str), re.IGNORECASE)
+    if match:
+        return float(match.group(1))
+
+    # Fallback: if only one ticker mentioned, grab any dollar amount
+    dollar_matches = re.findall(r'\$(\d+(?:\.\d+)?)', str(price_str))
+    if len(dollar_matches) == 1:
+        return float(dollar_matches[0])
+
+    return None
+
+
+def auto_create_outcomes(alert_id, trade_data, setup_grade, confidence):
+    """
+    Auto-create trade_outcomes rows from alert trade data.
+    Called when confidence >= 2 and tickers exist.
+
+    Args:
+        alert_id: The trade_alerts.id
+        trade_data: Dict with tickers, direction, entry, target, stop_loss
+        setup_grade: Grade string (A+, A, B+, B, C)
+        confidence: Int 0-5
+
+    Returns:
+        Count of outcomes created
+    """
+    tickers = trade_data.get('tickers', [])
+    if not tickers:
+        return 0
+
+    direction = trade_data.get('direction', 'long')
+    entry_str = trade_data.get('entry', '')
+    target_str = trade_data.get('target', '')
+    stop_str = trade_data.get('stop_loss', '')
+
+    count = 0
+    for ticker in tickers:
+        entry_price = _parse_price_string(entry_str, ticker)
+        target_price = _parse_price_string(target_str, ticker)
+        stop_price = _parse_price_string(stop_str, ticker)
+
+        if entry_price is None:
+            logger.warning(f"Could not parse entry price for {ticker}, skipping outcome")
+            continue
+
+        oid = insert_trade_outcome(
+            alert_id=alert_id,
+            ticker=ticker,
+            direction=direction,
+            entry_price=entry_price,
+            target_price=target_price,
+            stop_price=stop_price,
+            setup_grade=setup_grade,
+            confidence=confidence
+        )
+        if oid:
+            count += 1
+
+    logger.info(f"Created {count} trade outcome(s) for alert {alert_id}")
+    return count
+
+
+def insert_trade_outcome(alert_id, ticker, direction, entry_price,
+                         target_price, stop_price, setup_grade, confidence):
+    """Insert a single trade_outcomes row."""
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            INSERT INTO trade_outcomes
+                (alert_id, ticker, direction, entry_price, target_price,
+                 stop_price, setup_grade, confidence, expires_at)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s,
+                    NOW() + INTERVAL %s DAY)
+        """, (
+            alert_id, ticker, direction, entry_price, target_price,
+            stop_price, setup_grade, confidence, OUTCOME_RESOLUTION_DAYS
+        ))
+
+        connection.commit()
+        oid = cursor.lastrowid
+        logger.debug(f"Inserted trade outcome {oid}: {direction} {ticker} @ ${entry_price}")
+        return oid
+
+    except Error as e:
+        logger.error(f"Error inserting trade outcome: {e}")
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def get_unresolved_outcomes():
+    """Return all unresolved trade_outcomes rows, ordered by expires_at."""
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id, alert_id, created_at, ticker, direction,
+                   entry_price, target_price, stop_price,
+                   setup_grade, confidence, expires_at
+            FROM trade_outcomes
+            WHERE resolved = FALSE
+            ORDER BY expires_at ASC
+        """)
+
+        return cursor.fetchall()
+
+    except Error as e:
+        logger.error(f"Error fetching unresolved outcomes: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def resolve_outcome(outcome_id, outcome, exit_price, pct_move):
+    """Mark a trade outcome as resolved."""
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            UPDATE trade_outcomes
+            SET resolved = TRUE, resolved_at = NOW(),
+                outcome = %s, exit_price = %s, pct_move = %s
+            WHERE id = %s
+        """, (outcome, exit_price, pct_move, outcome_id))
+
+        connection.commit()
+        logger.info(f"Resolved outcome {outcome_id}: {outcome} (exit ${exit_price}, move {pct_move:+.2f}%)")
+        return cursor.rowcount > 0
+
+    except Error as e:
+        logger.error(f"Error resolving outcome {outcome_id}: {e}")
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def get_accuracy_by_grade(days=90):
+    """
+    Aggregate trade outcome accuracy by setup grade over the last N days.
+
+    Returns:
+        Dict of {grade: {total, wins, losses, breakevens, win_rate, avg_move}}
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT
+                setup_grade,
+                COUNT(*) as total,
+                SUM(outcome = 'win') as wins,
+                SUM(outcome = 'loss') as losses,
+                SUM(outcome = 'breakeven') as breakevens,
+                AVG(pct_move) as avg_move
+            FROM trade_outcomes
+            WHERE resolved = TRUE
+              AND resolved_at >= NOW() - INTERVAL %s DAY
+              AND setup_grade IS NOT NULL
+            GROUP BY setup_grade
+            ORDER BY setup_grade
+        """, (days,))
+
+        results = {}
+        for row in cursor.fetchall():
+            grade = row['setup_grade']
+            total = row['total']
+            wins = int(row['wins'] or 0)
+            results[grade] = {
+                'total': total,
+                'wins': wins,
+                'losses': int(row['losses'] or 0),
+                'breakevens': int(row['breakevens'] or 0),
+                'win_rate': round(wins / total * 100, 1) if total > 0 else 0,
+                'avg_move': round(float(row['avg_move'] or 0), 2)
+            }
+
+        return results
+
+    except Error as e:
+        logger.error(f"Error fetching accuracy by grade: {e}")
+        return {}
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def cleanup_trade_outcomes(days=90):
+    """Delete old resolved trade outcomes."""
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            DELETE FROM trade_outcomes
+            WHERE resolved = TRUE
+              AND resolved_at < NOW() - INTERVAL %s DAY
+        """, (days,))
+
+        deleted_count = cursor.rowcount
+        connection.commit()
+        logger.info(f"Cleaned up {deleted_count} trade outcomes older than {days} days")
+        return deleted_count
+
+    except Error as e:
+        logger.error(f"Error cleaning up trade outcomes: {e}")
+        return 0
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+# =============================================================================
+# Active Positions (Position Tracking)
+# =============================================================================
+
+def enter_position_from_alert(alert_id, user_id='default'):
+    """
+    Create active position(s) from a trade alert's stored data.
+
+    Args:
+        alert_id: trade_alerts.id to read trade data from
+        user_id: User identifier (default 'default')
+
+    Returns:
+        List of created position IDs, or empty list on failure
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        # Read the alert's top_stories JSON (contains trade data)
+        cursor.execute(
+            "SELECT top_stories, narrative FROM trade_alerts WHERE id = %s",
+            (alert_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            logger.error(f"Alert {alert_id} not found")
+            return []
+
+        trade_data = row['top_stories']
+        if isinstance(trade_data, str):
+            trade_data = json.loads(trade_data)
+
+        tickers = trade_data.get('tickers', [])
+        if not tickers:
+            logger.error(f"Alert {alert_id} has no tickers")
+            return []
+
+        direction = trade_data.get('direction', 'long')
+        entry_str = trade_data.get('entry', '')
+        target_str = trade_data.get('target', '')
+        stop_str = trade_data.get('stop_loss', '')
+        thesis = trade_data.get('thesis', row.get('narrative', ''))
+
+        position_ids = []
+        for ticker in tickers:
+            entry_price = _parse_price_string(entry_str, ticker)
+            target_price = _parse_price_string(target_str, ticker)
+            stop_price = _parse_price_string(stop_str, ticker)
+
+            cursor.execute("""
+                INSERT INTO active_positions
+                    (user_id, alert_id, ticker, direction, entry_price,
+                     target_price, stop_loss, thesis)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                user_id, alert_id, ticker, direction,
+                entry_price, target_price, stop_price, thesis
+            ))
+            position_ids.append(cursor.lastrowid)
+            logger.info(f"Created position: {direction} {ticker} @ ${entry_price} (alert {alert_id})")
+
+        connection.commit()
+        return position_ids
+
+    except Error as e:
+        logger.error(f"Error creating positions from alert {alert_id}: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def get_active_positions(user_id='default'):
+    """Return all open positions for a user."""
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        cursor.execute("""
+            SELECT id, user_id, alert_id, ticker, direction, entry_price,
+                   entry_date, target_price, stop_loss, status, thesis, notes
+            FROM active_positions
+            WHERE user_id = %s AND status = 'open'
+            ORDER BY entry_date DESC
+        """, (user_id,))
+
+        return cursor.fetchall()
+
+    except Error as e:
+        logger.error(f"Error fetching active positions: {e}")
+        return []
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def close_position(position_id, exit_price=None, status='closed'):
+    """
+    Close an active position.
+
+    Args:
+        position_id: active_positions.id
+        exit_price: Price at exit (if None, will need to be fetched externally)
+        status: One of closed, stopped_out, target_hit, expired
+    """
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_connection()
+        cursor = connection.cursor()
+
+        cursor.execute("""
+            UPDATE active_positions
+            SET status = %s, exit_price = %s, exit_date = NOW()
+            WHERE id = %s AND status = 'open'
+        """, (status, exit_price, position_id))
+
+        connection.commit()
+        logger.info(f"Closed position {position_id}: {status} @ ${exit_price}")
+        return cursor.rowcount > 0
+
+    except Error as e:
+        logger.error(f"Error closing position {position_id}: {e}")
+        return False
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+
+
+def update_position_status(position_id, status, exit_price=None):
+    """Update position status (used by resolver for auto stop/target hits)."""
+    return close_position(position_id, exit_price=exit_price, status=status)
+
+
 def cleanup_deep_dives(days=7):
     """
     Delete old completed/expired/failed deep-dive items.
@@ -616,10 +1082,12 @@ def run_cleanup(scan_days=30, alert_days=90):
     scans_deleted = cleanup_old_scans(scan_days)
     alerts_deleted = cleanup_old_alerts(alert_days)
     dives_deleted = cleanup_deep_dives(days=7)
+    outcomes_deleted = cleanup_trade_outcomes(days=alert_days)
 
     logger.info(
         f"Cleanup complete: {scans_deleted} scans, "
-        f"{alerts_deleted} alerts, {dives_deleted} deep-dives removed"
+        f"{alerts_deleted} alerts, {dives_deleted} deep-dives, "
+        f"{outcomes_deleted} outcomes removed"
     )
 
 

@@ -22,6 +22,16 @@ DB_NAME = os.getenv("DB_NAME", "macro_scanner")
 DB_PORT = int(os.getenv("DB_PORT", "3306"))
 
 # =============================================================================
+# Polymarket Database Configuration (cross-DB queries)
+# =============================================================================
+
+POLYMARKET_DB_HOST = os.getenv("POLYMARKET_DB_HOST", os.getenv("DB_HOST", "localhost"))
+POLYMARKET_DB_USER = os.getenv("POLYMARKET_DB_USER", "polymarket")
+POLYMARKET_DB_PASSWORD = os.getenv("POLYMARKET_DB_PASSWORD", "")
+POLYMARKET_DB_NAME = os.getenv("POLYMARKET_DB_NAME", "polymarket_monitor")
+POLYMARKET_DB_PORT = int(os.getenv("POLYMARKET_DB_PORT", os.getenv("DB_PORT", "3306")))
+
+# =============================================================================
 # Perplexity API (fallback for automated cron when no Comet scan available)
 # =============================================================================
 
@@ -64,6 +74,13 @@ DEEP_RESEARCH_TIMEOUT = int(os.getenv("DEEP_RESEARCH_TIMEOUT", "180"))
 DEEP_DIVE_EXPIRY_HOURS = int(os.getenv("DEEP_DIVE_EXPIRY_HOURS", "48"))
 
 # =============================================================================
+# Trade Outcome Resolution
+# =============================================================================
+
+OUTCOME_RESOLUTION_DAYS = int(os.getenv("OUTCOME_RESOLUTION_DAYS", "28"))
+OUTCOME_BREAKEVEN_PCT = float(os.getenv("OUTCOME_BREAKEVEN_PCT", "1.0"))
+
+# =============================================================================
 # Logging Configuration
 # =============================================================================
 
@@ -97,6 +114,15 @@ def print_config():
     print(f"DEEP_RESEARCH_THRESHOLD: {DEEP_RESEARCH_THRESHOLD}")
     print(f"DEEP_RESEARCH_TIMEOUT: {DEEP_RESEARCH_TIMEOUT}s")
     print(f"DEEP_DIVE_EXPIRY_HOURS: {DEEP_DIVE_EXPIRY_HOURS}h")
+    print("-" * 60)
+    print(f"OUTCOME_RESOLUTION_DAYS: {OUTCOME_RESOLUTION_DAYS}")
+    print(f"OUTCOME_BREAKEVEN_PCT: {OUTCOME_BREAKEVEN_PCT}%")
+    print("-" * 60)
+    print(f"POLYMARKET_DB_HOST: {POLYMARKET_DB_HOST}")
+    print(f"POLYMARKET_DB_USER: {POLYMARKET_DB_USER}")
+    print(f"POLYMARKET_DB_PASSWORD: {'*' * len(POLYMARKET_DB_PASSWORD) if POLYMARKET_DB_PASSWORD else '(not set)'}")
+    print(f"POLYMARKET_DB_NAME: {POLYMARKET_DB_NAME}")
+    print(f"POLYMARKET_DB_PORT: {POLYMARKET_DB_PORT}")
     print("=" * 60)
 
 
