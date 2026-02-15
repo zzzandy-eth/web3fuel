@@ -121,11 +121,11 @@ def send_macro_alert(analysis, indicators=None):
             setup_lines = [f"{dir_emoji} **{direction} {tickers}**"]
 
             if sector_impact:
-                setup_lines.append(f"Sector: {sector_impact}")
+                setup_lines.append(f"\n**Sector:** {sector_impact}")
 
             thesis = trade.get('thesis', '')
             if thesis:
-                setup_lines.append(thesis)
+                setup_lines.append(f"\n**Thesis:** {thesis}")
 
             entry = trade.get('entry', '')
             target = trade.get('target', '')
@@ -133,17 +133,18 @@ def send_macro_alert(analysis, indicators=None):
             timeline = trade.get('timeline', '')
 
             if entry:
-                setup_lines.append(f"Entry: {entry}")
+                setup_lines.append(f"\n**Entry:** {entry}")
             if target:
-                setup_lines.append(f"Target: {target}")
+                setup_lines.append(f"**Target:** {target}")
             if stop:
-                setup_lines.append(f"Stop: {stop}")
+                setup_lines.append(f"**Stop:** {stop}")
+
             if timeline:
-                setup_lines.append(f"Timeline: {timeline}")
+                setup_lines.append(f"\n**Timeline:** {timeline}")
 
             position_note = trade.get('position_note', '')
             if position_note:
-                setup_lines.append(f"_{position_note}_")
+                setup_lines.append(f"\n_{position_note}_")
 
             fields.append({
                 "name": f"\U0001f4b0 Trade Setup | Regime: {regime}",
@@ -276,16 +277,22 @@ def send_daily_summary(summary):
 
             thesis = trade.get('thesis', '')
             if thesis:
-                trade_lines.append(thesis)
+                trade_lines.append(f"\n**Thesis:** {thesis}")
 
-            for field_name, label in [('entry', 'Entry'), ('target', 'Target'), ('stop_loss', 'Stop')]:
-                val = trade.get(field_name, '')
-                if val:
-                    trade_lines.append(f"{label}: {val}")
+            entry = trade.get('entry', '')
+            target = trade.get('target', '')
+            stop = trade.get('stop_loss', '')
+
+            if entry:
+                trade_lines.append(f"\n**Entry:** {entry}")
+            if target:
+                trade_lines.append(f"**Target:** {target}")
+            if stop:
+                trade_lines.append(f"**Stop:** {stop}")
 
             timeline = trade.get('timeline', '')
             if timeline:
-                trade_lines.append(f"Timeline: {timeline}")
+                trade_lines.append(f"\n**Timeline:** {timeline}")
 
             fields.append({
                 "name": "\U0001f4b0 Trade Setup (Verified Prices)",
