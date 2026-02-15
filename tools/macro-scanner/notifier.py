@@ -190,51 +190,115 @@ def send_macro_alert(analysis, indicators=None):
         return False
 
 
-COLOR_DEEP_DIVE_PURPLE = 0x9B59B6
+COLOR_DAILY_SUMMARY = 0x3498DB  # Blue
 
 
-def send_deep_dive_alert(results):
+def send_daily_summary(summary):
     """
-    Send a deep-dive research report to Discord as a purple embed.
+    Send a daily summary to Discord — high-level news + key insights + trade setup.
 
     Args:
-        results: List of dicts with keys: headline, deep_research
+        summary: Dict with:
+          - headlines: [{headline, summary, direction}] — today's top stories
+          - insights: [{headline, insight}] — deep-dive research findings
+          - trade: {tickers, direction, entry, target, stop_loss, thesis, timeline} — optional
 
     Returns:
         True if sent successfully, False otherwise
     """
     if not DISCORD_WEBHOOK_URL:
-        logger.warning("Discord webhook URL not configured - skipping deep-dive notification")
+        logger.warning("Discord webhook URL not configured - skipping daily summary")
         return False
 
-    if not results:
-        logger.warning("No deep-dive results to send")
+    headlines = summary.get('headlines', [])
+    insights = summary.get('insights', [])
+    trade = summary.get('trade', {})
+
+    if not headlines and not insights:
+        logger.warning("No content for daily summary")
         return False
 
     try:
         now = datetime.now(timezone.utc)
-        timestamp_display = now.strftime("%Y-%m-%d %H:%M UTC")
+        timestamp_display = now.strftime("%a %b %d, %Y %H:%M UTC")
 
         fields = []
-        for item in results[:5]:  # Max 5 to stay within embed limits
-            headline = item.get('headline', 'Unknown')
-            research = item.get('deep_research', 'No research available')
-            # Truncate research to fit Discord field limit
-            if len(research) > 900:
-                research = research[:900] + "..."
+
+        # Headlines section — compact bullet list
+        if headlines:
+            lines = []
+            for h in headlines[:5]:
+                direction = h.get('direction', 'mixed')
+                emoji = DIRECTION_EMOJI.get(direction, "\U0001f7e1")
+                headline = h.get('headline', 'Unknown')
+                summary_text = h.get('summary', '')
+                line = f"{emoji} **{headline}**"
+                if summary_text:
+                    # Keep summary to one sentence
+                    first_sentence = summary_text.split('. ')[0]
+                    line += f"\n{first_sentence}."
+                lines.append(line)
 
             fields.append({
-                "name": f"\U0001f52c {headline}",
-                "value": research[:1024],
+                "name": "\U0001f4f0 Today's Key Events",
+                "value": '\n\n'.join(lines)[:1024],
+                "inline": False
+            })
+
+        # Insights section — key takeaways from deep dives
+        if insights:
+            lines = []
+            for item in insights[:3]:
+                headline = item.get('headline', '')
+                insight = item.get('insight', '')
+                if insight:
+                    # Extract first 2 sentences of insight
+                    sentences = insight.split('. ')
+                    short = '. '.join(sentences[:2]) + '.'
+                    if len(short) > 300:
+                        short = short[:297] + "..."
+                    lines.append(f"\U0001f52c **{headline}**\n{short}")
+
+            if lines:
+                fields.append({
+                    "name": "\U0001f4a1 Key Insights",
+                    "value": '\n\n'.join(lines)[:1024],
+                    "inline": False
+                })
+
+        # Trade setup section (if provided with verified prices)
+        if trade and trade.get('tickers'):
+            direction = trade.get('direction', 'long').upper()
+            tickers = ', '.join(trade.get('tickers', []))
+            dir_emoji = "\U0001f7e2" if direction == "LONG" else "\U0001f534"
+
+            trade_lines = [f"{dir_emoji} **{direction} {tickers}**"]
+
+            thesis = trade.get('thesis', '')
+            if thesis:
+                trade_lines.append(thesis)
+
+            for field_name, label in [('entry', 'Entry'), ('target', 'Target'), ('stop_loss', 'Stop')]:
+                val = trade.get(field_name, '')
+                if val:
+                    trade_lines.append(f"{label}: {val}")
+
+            timeline = trade.get('timeline', '')
+            if timeline:
+                trade_lines.append(f"Timeline: {timeline}")
+
+            fields.append({
+                "name": "\U0001f4b0 Trade Setup (Verified Prices)",
+                "value": '\n'.join(trade_lines)[:1024],
                 "inline": False
             })
 
         embed = {
-            "title": "\U0001f52d Deep Dive Research Report",
-            "color": COLOR_DEEP_DIVE_PURPLE,
+            "title": f"\U0001f4cb Daily Macro Briefing",
+            "color": COLOR_DAILY_SUMMARY,
             "fields": fields,
             "footer": {
-                "text": f"Deep Dive \u2022 {len(results)} topic{'s' if len(results) != 1 else ''} \u2022 {timestamp_display}"
+                "text": f"Daily Summary \u2022 {timestamp_display}"
             },
             "timestamp": now.isoformat()
         }
@@ -248,7 +312,7 @@ def send_deep_dive_alert(results):
         )
 
         if response.status_code == 204:
-            logger.info(f"Deep-dive alert sent to Discord ({len(results)} topics)")
+            logger.info(f"Daily summary sent to Discord ({len(headlines)} headlines, {len(insights)} insights)")
             return True
         elif response.status_code == 429:
             logger.warning(f"Discord rate limited. Retry after: {response.headers.get('Retry-After', 'unknown')}s")
@@ -264,7 +328,7 @@ def send_deep_dive_alert(results):
         logger.error(f"Discord webhook error: {e}")
         return False
     except Exception as e:
-        logger.error(f"Unexpected error sending deep-dive alert: {e}")
+        logger.error(f"Unexpected error sending daily summary: {e}")
         return False
 
 

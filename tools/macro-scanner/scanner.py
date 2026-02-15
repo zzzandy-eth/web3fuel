@@ -4,12 +4,13 @@ Orchestrates the pipeline: News scan (Comet/file) -> yfinance indicators ->
 Claude analysis -> Discord alert -> DB storage.
 
 Usage:
-    python scanner.py                  # Run pipeline (reads scan_input.json)
+    python scanner.py                  # Run pipeline + Discord alert (cron mode)
     python scanner.py --test           # Send test Discord notification
-    python scanner.py --scan           # Full flow: Comet scan + pipeline (via Claude Code)
+    python scanner.py --scan           # Comet scan + pipeline, NO Discord alert (manual mode)
+    python scanner.py --no-notify      # Run pipeline without Discord notification
     python scanner.py --deep-dive=list # Show pending deep-dive queue as JSON
-    python scanner.py --deep-dive      # Read deep-dive results from stdin, store + notify
-    python scanner.py --deep-dive=file # Read deep-dive results from file path
+    python scanner.py --deep-dive      # Read daily summary JSON from stdin, store + send summary
+    python scanner.py --deep-dive=file # Read daily summary JSON from file path
 """
 
 import sys
@@ -56,9 +57,12 @@ def setup_logging():
     root_logger.addHandler(file_handler)
 
 
-def run_pipeline():
+def run_pipeline(notify=True):
     """
     Execute the macro scanning pipeline.
+
+    Args:
+        notify: If True, send Discord alert. If False, skip (Comet/manual mode).
 
     Returns:
         Tuple of (scan_id, alert_id) or (None, None) on failure
@@ -147,7 +151,9 @@ def run_pipeline():
     logger.info("Step 4/4: Discord notification")
     logger.info("=" * 60)
 
-    if analysis and DISCORD_WEBHOOK_URL:
+    if not notify:
+        logger.info("Notification suppressed (manual/Comet mode) — will send via daily summary")
+    elif analysis and DISCORD_WEBHOOK_URL:
         success = send_macro_alert(analysis, indicators)
         if success and alert_id:
             mark_alert_notified(alert_id)
@@ -263,55 +269,72 @@ def list_deep_dive_queue():
 
 def run_deep_dives(source):
     """
-    Process deep-dive research results: update DB and send Discord alert.
+    Process deep-dive results and send a daily summary to Discord.
 
     Args:
         source: File path to JSON, or '' to read from stdin.
-                JSON should be an array of {queue_id, headline, deep_research}
+                JSON object with:
+                  - headlines: [{headline, summary, direction, sectors}] (today's key news)
+                  - deep_dives: [{queue_id, headline, deep_research}] (deep-dive results)
+                  - trade: {tickers, direction, entry, target, stop_loss, thesis, timeline} (optional verified trade)
     """
     import json
     from database import update_deep_dive
-    from notifier import send_deep_dive_alert
+    from notifier import send_daily_summary
 
     try:
         if source:
             with open(source, 'r') as f:
-                results = json.load(f)
+                data = json.load(f)
         else:
-            logger.info("Reading deep-dive results from stdin...")
-            results = json.load(sys.stdin)
+            logger.info("Reading daily summary from stdin...")
+            data = json.load(sys.stdin)
     except (json.JSONDecodeError, FileNotFoundError) as e:
-        logger.error(f"Failed to load deep-dive results: {e}")
+        logger.error(f"Failed to load daily summary data: {e}")
         sys.exit(1)
 
-    if not isinstance(results, list) or not results:
-        logger.error("Expected a non-empty JSON array of deep-dive results")
-        sys.exit(1)
+    # Support both old format (list of results) and new format (summary object)
+    if isinstance(data, list):
+        # Legacy format: list of {queue_id, headline, deep_research}
+        data = {"deep_dives": data}
 
-    completed = []
-    for item in results:
+    deep_dives = data.get('deep_dives', [])
+    headlines = data.get('headlines', [])
+    trade = data.get('trade', {})
+
+    # Store deep-dive results in DB
+    completed_dives = []
+    for item in deep_dives:
         queue_id = item.get('queue_id')
         deep_research = item.get('deep_research', '')
         headline = item.get('headline', 'Unknown')
 
         if not queue_id:
             logger.warning(f"Skipping item without queue_id: {headline}")
+            completed_dives.append({"headline": headline, "insight": deep_research})
             continue
 
         success = update_deep_dive(queue_id, 'completed', deep_research=deep_research)
         if success:
-            completed.append({"headline": headline, "deep_research": deep_research})
+            completed_dives.append({"headline": headline, "insight": deep_research})
             logger.info(f"Stored deep-dive for queue_id={queue_id}: {headline}")
         else:
             logger.warning(f"Failed to update queue_id={queue_id}")
 
-    if completed and DISCORD_WEBHOOK_URL:
-        send_deep_dive_alert(completed)
-        logger.info(f"Deep-dive complete: {len(completed)} topic(s) researched and notified")
-    elif completed:
-        logger.info(f"Deep-dive complete: {len(completed)} topic(s) stored (no Discord webhook)")
+    # Build summary payload
+    summary = {
+        "headlines": headlines,
+        "insights": completed_dives,
+        "trade": trade
+    }
+
+    if (headlines or completed_dives) and DISCORD_WEBHOOK_URL:
+        send_daily_summary(summary)
+        logger.info(f"Daily summary sent: {len(headlines)} headlines, {len(completed_dives)} insights")
+    elif headlines or completed_dives:
+        logger.info(f"Daily summary stored (no Discord webhook): {len(headlines)} headlines, {len(completed_dives)} insights")
     else:
-        logger.warning("No deep-dive results were successfully stored")
+        logger.warning("No content for daily summary")
 
 
 def main():
@@ -319,8 +342,10 @@ def main():
     parser = argparse.ArgumentParser(description="Macro Scanner - Macroeconomic news scanner")
     parser.add_argument('--test', action='store_true', help="Send test Discord notification")
     parser.add_argument('--scan', type=str, nargs='?', const='', help="Load Comet JSON from stdin or file path, save to scan_input.json, then run pipeline")
+    parser.add_argument('--no-notify', action='store_true', dest='no_notify',
+                        help="Run pipeline without sending Discord notification")
     parser.add_argument('--deep-dive', type=str, nargs='?', const='', dest='deep_dive',
-                        help="Deep-dive mode: 'list' to show pending queue as JSON, or path/stdin to store results")
+                        help="Deep-dive mode: 'list' to show pending queue as JSON, or path/stdin to store daily summary")
     args = parser.parse_args()
 
     setup_logging()
@@ -377,9 +402,12 @@ def main():
         logger.error(f"Database initialization failed: {e}")
         sys.exit(1)
 
+    # --scan implies --no-notify (daily summary comes after deep dive instead)
+    should_notify = not (args.no_notify or args.scan is not None)
+
     # Run pipeline
     try:
-        scan_id, alert_id = run_pipeline()
+        scan_id, alert_id = run_pipeline(notify=should_notify)
     except Exception as e:
         logger.error(f"Pipeline failed with unexpected error: {e}", exc_info=True)
 
