@@ -71,11 +71,17 @@ def _build_analysis_prompt(top3, indicators, active_positions=None):
     Returns:
         Prompt string
     """
-    # Format stories
+    # Format stories with enriched fields
     stories_text = ""
     for i, story in enumerate(top3, 1):
         stories_text += f"\n{i}. {story.get('headline', 'Unknown')}\n"
-        stories_text += f"   Impact: {story.get('impact_score', '?')}/10 | Direction: {story.get('direction', '?')}\n"
+        impact = story.get('impact_score', '?')
+        direction = story.get('direction', '?')
+        theme = story.get('macro_theme', '')
+        theme_str = f" | Theme: {theme}" if theme else ""
+        conf = story.get('confidence', '')
+        conf_str = f" | Scan confidence: {conf}/5" if conf else ""
+        stories_text += f"   Impact: {impact}/10 | Direction: {direction}{theme_str}{conf_str}\n"
         stories_text += f"   Sectors: {', '.join(story.get('affected_sectors', []))}\n"
         rationale = story.get('rationale') or story.get('summary', '')
         if rationale:
@@ -83,6 +89,8 @@ def _build_analysis_prompt(top3, indicators, active_positions=None):
         instruments = story.get('key_instruments', [])
         if instruments:
             stories_text += f"   Key instruments: {', '.join(instruments)}\n"
+        if story.get('affects_positions'):
+            stories_text += f"   ** AFFECTS ACTIVE POSITIONS **\n"
 
     # Format indicators as market regime context
     indicators_text = format_indicators_text(indicators) if indicators else "N/A"
@@ -111,7 +119,13 @@ def _build_analysis_prompt(top3, indicators, active_positions=None):
         "Prefer sector ETFs (XLE, XLF, XLK, XBI, XHB, etc.) or high-beta leaders within the sector "
         "(e.g. OXY/SLB for energy, NVDA/AMD for semis, JPM/GS for financials). "
         "Avoid broad market ETFs like SPY/QQQ unless the catalyst is truly market-wide.\n"
-        "4. TRADE CONSTRUCTION: Calculate concrete entry, target, and stop-loss levels. "
+        "4. DOMINANT THEME: Each catalyst has a macro_theme tag (rates, inflation, growth, "
+        "credit, policy, geopolitics, liquidity). Identify today's dominant theme and use it "
+        "to frame your overall stance. A 'rates' day feels different from a 'geopolitics' day.\n"
+        "5. POSITION PRIORITIZATION: Items marked 'AFFECTS ACTIVE POSITIONS' should be weighed "
+        "more heavily when formulating position_alerts. These are catalysts that directly impact "
+        "the user's open trades.\n"
+        "6. TRADE CONSTRUCTION: Calculate concrete entry, target, and stop-loss levels. "
         "The stop should be at a price level that invalidates your sector thesis, "
         "not an arbitrary percentage.\n\n"
 

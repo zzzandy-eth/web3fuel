@@ -55,7 +55,10 @@ def normalize_item(item):
         "rationale": item.get("summary", item.get("rationale", "")),
         "key_instruments": item.get("key_instruments", []),
         "source": item.get("source", ""),
-        "url": item.get("url", "")
+        "url": item.get("url", ""),
+        "macro_theme": item.get("macro_theme", ""),
+        "confidence": item.get("confidence", 3),
+        "affects_positions": item.get("affects_positions", False),
     }
 
 
@@ -152,22 +155,47 @@ def _fetch_from_api():
     }
 
     user_content = (
-        "Top 3 most market-moving macro/financial news items TODAY. "
-        "For each return: headline, impact_score (1-10), "
-        "direction (bullish/bearish/mixed), "
-        "affected_sectors (list), "
-        "rationale (1-2 sentences for swing traders), "
-        "key_instruments (specific tickers like SPY, TLT, GLD). "
-        "JSON array sorted by impact_score desc. "
-        "Focus on: Fed, inflation, jobs, GDP, geopolitics, earnings, commodities."
+        "Act as a professional macro/markets analyst. "
+        "From the last 24 hours of global news and data, identify the most "
+        "market-moving developments for financial markets.\n\n"
+        "Focus on: central bank policy (Fed/ECB/BoJ/BoE), inflation and jobs data, "
+        "GDP/PMI, FX regime shifts, energy/geopolitics, major earnings surprises, "
+        "credit stress, and volatility shocks.\n\n"
+        "Return a JSON array with up to 10 items. For each item include:\n"
+        "- headline: concise title\n"
+        "- impact_score: 1-10 for GLOBAL macro/market impact (10 = very high)\n"
+        "- confidence: 1-5 for your confidence in this impact assessment\n"
+        "- macro_theme: one of 'rates','inflation','growth','credit','policy','geopolitics','liquidity'\n"
+        "- direction: 'bullish','bearish', or 'mixed'\n"
+        "- affected_sectors: list, e.g. ['equities','rates','fx','energy','credit','volatility','crypto']\n"
+        "- key_instruments: the most directly affected tickers/instruments "
+        "  (e.g. ['SPY','QQQ','TLT','DXY','VIX','CL=F','GC=F'])\n"
+        "- summary: 1-2 sentences focused on trading implications (1-4 week horizon)\n"
+        "- source: main news source domain (e.g. 'wsj.com','reuters.com')\n"
+        "- url: canonical article URL\n\n"
+        "VALIDATION RULES:\n"
+        "- For each item, cross-check: does the financial market reaction "
+        "(price moves, futures, bond yields) confirm the headline's implied direction? "
+        "If market data contradicts the headline narrative, lower your confidence score. "
+        "If price action confirms it, raise it.\n"
+        "- Distinguish between 'news the market has already priced in' vs "
+        "'news that is actively moving prices.' Only score impact_score >= 7 "
+        "for items where price action is still unfolding.\n\n"
+        "Return ONLY the JSON array, sorted by impact_score DESC."
     )
 
-    # Append active position tickers so Perplexity flags relevant news
+    # Append active position tickers or macro proxy fallback
     position_tickers = _get_active_position_tickers()
     if position_tickers:
         user_content += (
-            f" Also flag any news that may specifically affect these "
-            f"active positions: {', '.join(position_tickers)}."
+            f"\n\nI currently hold these active positions: {', '.join(position_tickers)}. "
+            "If any of your items have a non-trivial impact on these, "
+            "set a field `affects_positions: true` and mention them by ticker in key_instruments."
+        )
+    else:
+        user_content += (
+            "\n\nPay particular attention to instruments commonly used as macro proxies: "
+            "SPY, QQQ, TLT, DXY, EURUSD, USDJPY, VIX, CL=F, GC=F, BTC-USD."
         )
 
     payload = {
@@ -175,7 +203,10 @@ def _fetch_from_api():
         "messages": [
             {
                 "role": "system",
-                "content": "Macro analyst. Return ONLY a JSON array, no other text."
+                "content": (
+                    "Professional macro/markets analyst. "
+                    "Return ONLY a JSON array, no other text."
+                )
             },
             {
                 "role": "user",
@@ -208,6 +239,13 @@ def _fetch_from_api():
             return None
 
         items = [normalize_item(item) for item in result]
+
+        # Filter out low-confidence items before ranking
+        before_count = len(items)
+        items = [i for i in items if i.get('confidence', 3) >= 3]
+        if before_count > len(items):
+            logger.info(f"Filtered {before_count - len(items)} low-confidence items")
+
         items.sort(key=lambda x: x.get("impact_score", 0), reverse=True)
         items = items[:5]
 
