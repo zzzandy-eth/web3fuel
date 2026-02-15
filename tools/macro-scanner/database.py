@@ -547,8 +547,9 @@ def update_deep_dive(queue_id, status, deep_research=None):
 
 def _parse_price_string(price_str, ticker):
     """
-    Extract a dollar price for a specific ticker from strings like:
+    Extract a price for a specific ticker from strings like:
       "XLE: $89.50; OXY: $52.10"
+      "XLE: 89.50; OXY: 52.10"
       "XLE: at market ($89.50)"
       "$89.50"
 
@@ -560,16 +561,24 @@ def _parse_price_string(price_str, ticker):
 
     import re
 
-    # Try ticker-specific pattern first: "TICKER: $XX.XX" or "TICKER: at market ($XX.XX)"
-    pattern = rf'{re.escape(ticker)}[^$]*\$(\d+(?:\.\d+)?)'
+    # Try ticker-specific pattern: "TICKER: $XX.XX" or "TICKER: XX.XX" (with or without $)
+    pattern = rf'{re.escape(ticker)}[\s:]+\$?(\d+(?:\.\d+)?)'
     match = re.search(pattern, str(price_str), re.IGNORECASE)
     if match:
         return float(match.group(1))
 
-    # Fallback: if only one ticker mentioned, grab any dollar amount
-    dollar_matches = re.findall(r'\$(\d+(?:\.\d+)?)', str(price_str))
-    if len(dollar_matches) == 1:
-        return float(dollar_matches[0])
+    # Try with intervening text: "TICKER: at market ($XX.XX)"
+    pattern2 = rf'{re.escape(ticker)}[^;]*\$(\d+(?:\.\d+)?)'
+    match2 = re.search(pattern2, str(price_str), re.IGNORECASE)
+    if match2:
+        return float(match2.group(1))
+
+    # Fallback: if only one number in the whole string, use it
+    number_matches = re.findall(r'\$?(\d+(?:\.\d+)?)', str(price_str))
+    # Filter out likely non-price numbers (< 1.0)
+    price_matches = [m for m in number_matches if float(m) >= 1.0]
+    if len(price_matches) == 1:
+        return float(price_matches[0])
 
     return None
 
