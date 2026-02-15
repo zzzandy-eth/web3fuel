@@ -8,6 +8,7 @@ import re
 import logging
 
 import anthropic
+import yfinance as yf
 
 from config import CLAUDE_API_KEY, CLAUDE_MODEL
 from indicators import format_indicators_text
@@ -83,9 +84,6 @@ def _build_analysis_prompt(top3, indicators):
         '    "direction": "long" or "short",\n'
         '    "tickers": ["TICKER1", "TICKER2"],\n'
         '    "thesis": "1 sentence connecting the macro catalyst → sector impact → why these specific tickers",\n'
-        '    "entry": "specific price or condition (e.g. \'on pullback to $182\' or \'at market open\')",\n'
-        '    "target": "specific price level with rationale",\n'
-        '    "stop_loss": "specific price level that invalidates the sector thesis",\n'
         '    "timeline": "1-4 weeks with key date catalysts if any",\n'
         '    "position_note": "optional: sizing hint or options strategy if relevant"\n'
         '  },\n'
@@ -96,7 +94,8 @@ def _build_analysis_prompt(top3, indicators):
         "- If nothing is genuinely tradeable today, return confidence: 0 with empty trade.\n"
         "- Never recommend a trade just because news exists. No trade is a valid answer.\n"
         "- Tickers must be real, liquid, and available on US exchanges.\n"
-        "- Entry/target/stop must be specific dollar amounts, not percentages.\n"
+        "- DO NOT include entry, target, or stop_loss prices — those will be calculated "
+        "separately using live market data. Only provide tickers, direction, thesis, and timeline.\n"
         "- Consider whether the sector move is already priced in before recommending.\n"
         "- Think about which way the sector was trending BEFORE this catalyst — "
         "a catalyst that accelerates an existing trend is higher conviction than a reversal.\n"
@@ -137,6 +136,98 @@ def _extract_confidence(result):
             return max(0, min(5, score))
 
     return 1
+
+
+def _fetch_ticker_prices(tickers):
+    """
+    Fetch current prices for a list of tickers via yfinance.
+
+    Args:
+        tickers: List of ticker symbols (e.g. ["XLE", "OXY"])
+
+    Returns:
+        Dict of {ticker: price} for successfully fetched tickers
+    """
+    prices = {}
+    for symbol in tickers:
+        try:
+            ticker = yf.Ticker(symbol)
+            hist = ticker.history(period="5d", interval="1d")
+            if not hist.empty:
+                prices[symbol] = round(float(hist['Close'].iloc[-1]), 2)
+                logger.debug(f"Fetched {symbol}: ${prices[symbol]}")
+            else:
+                logger.warning(f"No price data for {symbol}")
+        except Exception as e:
+            logger.warning(f"Error fetching price for {symbol}: {e}")
+    return prices
+
+
+def _build_price_correction_prompt(result, prices):
+    """
+    Build a prompt to set entry/target/stop using real prices.
+
+    Args:
+        result: First-pass analysis dict from Claude
+        prices: Dict of {ticker: current_price} from yfinance
+
+    Returns:
+        Prompt string
+    """
+    trade = result.get('trade', {})
+    tickers = trade.get('tickers', [])
+    direction = trade.get('direction', 'long')
+    thesis = trade.get('thesis', '')
+    timeline = trade.get('timeline', '')
+    regime = result.get('market_regime', 'neutral')
+    sector = result.get('sector_impact', '')
+
+    price_lines = '\n'.join(f"  {t}: ${prices.get(t, 'N/A')}" for t in tickers)
+
+    return (
+        "You are setting entry, target, and stop-loss levels for a swing trade.\n\n"
+        f"Direction: {direction.upper()}\n"
+        f"Tickers: {', '.join(tickers)}\n"
+        f"Current prices (LIVE from market data):\n{price_lines}\n"
+        f"Thesis: {thesis}\n"
+        f"Market regime: {regime}\n"
+        f"Sector impact: {sector}\n"
+        f"Timeline: {timeline}\n\n"
+        "Return ONLY a JSON object with entry, target, and stop_loss for each ticker:\n"
+        "{\n"
+        '  "levels": {\n'
+        '    "TICKER": {\n'
+        '      "current_price": <from above>,\n'
+        '      "entry": "specific price or condition based on the current price",\n'
+        '      "target": "specific price level (use % move appropriate for swing trade)",\n'
+        '      "stop_loss": "specific price level that invalidates the thesis"\n'
+        '    }\n'
+        '  }\n'
+        "}\n\n"
+        "RULES:\n"
+        f"- For a {direction} trade, target should be "
+        f"{'above' if direction == 'long' else 'below'} current price, "
+        f"stop should be {'below' if direction == 'long' else 'above'}.\n"
+        "- Use the EXACT current prices provided above. Do NOT use memorized prices.\n"
+        "- Target: aim for 5-15% move for sector ETFs, 8-20% for individual stocks.\n"
+        "- Stop: place at a logical support/resistance level, typically 3-7% from entry.\n"
+        "- Risk/reward ratio should be at least 2:1.\n"
+        "- Return ONLY JSON, no commentary."
+    )
+
+
+def _set_fallback_prices(trade, prices):
+    """Set basic price info when the correction call fails."""
+    tickers = trade.get('tickers', [])
+    entries = []
+    for t in tickers:
+        if t in prices:
+            entries.append(f"{t}: at market (${prices[t]})")
+        else:
+            entries.append(f"{t}: at market")
+    trade['entry'] = '; '.join(entries)
+    trade['target'] = 'see thesis'
+    trade['stop_loss'] = 'see thesis'
 
 
 def analyze_macro(top3, indicators):
@@ -182,6 +273,65 @@ def analyze_macro(top3, indicators):
         if result:
             result['confidence'] = _extract_confidence(result)
             logger.info(f"Analysis complete. Confidence: {result['confidence']}/5")
+
+            # Step 2: Fetch real prices and correct entry/target/stop
+            trade = result.get('trade', {})
+            tickers = trade.get('tickers', [])
+            if tickers and result['confidence'] >= 2:
+                logger.info(f"Fetching live prices for {tickers}...")
+                prices = _fetch_ticker_prices(tickers)
+
+                if prices:
+                    logger.info(f"Live prices: {prices}")
+                    correction_prompt = _build_price_correction_prompt(result, prices)
+
+                    try:
+                        correction_msg = client.messages.create(
+                            model=CLAUDE_MODEL,
+                            max_tokens=800,
+                            messages=[
+                                {"role": "user", "content": correction_prompt}
+                            ]
+                        )
+                        correction_content = correction_msg.content[0].text
+                        levels = _parse_analysis_response(correction_content)
+
+                        if levels and 'levels' in levels:
+                            # Merge price levels into trade object
+                            all_entries = []
+                            all_targets = []
+                            all_stops = []
+
+                            for ticker in tickers:
+                                t_levels = levels['levels'].get(ticker, {})
+                                if t_levels:
+                                    price_str = f"${prices.get(ticker, '?')}"
+                                    entry = t_levels.get('entry', f'at market ({price_str})')
+                                    target = t_levels.get('target', 'N/A')
+                                    stop = t_levels.get('stop_loss', 'N/A')
+
+                                    all_entries.append(f"{ticker}: {entry}")
+                                    all_targets.append(f"{ticker}: {target}")
+                                    all_stops.append(f"{ticker}: {stop}")
+
+                            if all_entries:
+                                trade['entry'] = '; '.join(all_entries)
+                                trade['target'] = '; '.join(all_targets)
+                                trade['stop_loss'] = '; '.join(all_stops)
+                                result['trade'] = trade
+                                logger.info("Price levels corrected with live data")
+                        else:
+                            logger.warning("Could not parse price correction response")
+                            _set_fallback_prices(trade, prices)
+                            result['trade'] = trade
+
+                    except Exception as e:
+                        logger.warning(f"Price correction call failed: {e}")
+                        _set_fallback_prices(trade, prices)
+                        result['trade'] = trade
+                else:
+                    logger.warning("Could not fetch any live prices")
+
             return result
 
         # Fallback: use raw text
